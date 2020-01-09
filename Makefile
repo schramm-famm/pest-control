@@ -40,9 +40,10 @@ docker-run: docker 	## start the built docker image in a container
 	docker run -d -p 80:80 --name $(APP_NAME) $(APP_NAME)
 
 .PHONY: clean
-clean: 				## remove tmp/ and old docker images
+clean: 				## remove tmp/, stop and remove app container, old docker images
 	rm -rf tmp
 ifneq ("$(shell docker container list -a | grep heimdall)", "")
+	docker stop $(APP_NAME)
 	docker rm -f $(APP_NAME)
 endif
 	docker system prune
