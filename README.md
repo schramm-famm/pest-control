@@ -32,5 +32,12 @@ Creates a new set of preferences for a user.
 }
 ```
 
-By default (i.e. if the request body is `{}`), all `global` fields are `true`
-and there are no conversation notification preferences.
+All fields are optional. By default (i.e. if the request body is `{}`), all
+`global` fields are `true` and there are no conversation notification
+preferences.
+
+### GET api/prefs
+Retrieves preferences based on query.
+
+#### Query parameters
+* `conversation_id`: ID of the conversation (string, optional)
