@@ -11,6 +11,7 @@ import (
 func main() {
 	httpMux := mux.NewRouter()
 	httpMux.HandleFunc("/api/prefs", handlers.PostPrefsHandler).Methods("POST")
+	httpMux.HandleFunc("/api/prefs", handlers.GetPrefsHandler).Methods("GET")
 
 	httpSrv := &http.Server{
 		Addr:         ":80",

@@ -79,3 +79,64 @@ func TestPostPrefsHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPrefsHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		Query      string
+		ResBody    map[string]string
+	}{
+		{
+			Name:       "Successful preference retrieval with no query",
+			StatusCode: http.StatusOK,
+			ResBody: map[string]string{
+				"user_id":         "",
+				"conversation_id": "",
+			},
+		},
+		{
+			Name:       "Successful preference retrieval with user query",
+			StatusCode: http.StatusOK,
+			Query:      "?user_id=blah",
+			ResBody: map[string]string{
+				"user_id":         "blah",
+				"conversation_id": "",
+			},
+		},
+		{
+			Name:       "Successful preference retrieval with conversation query",
+			StatusCode: http.StatusOK,
+			Query:      "?user_id=blah&conversation_id=blah",
+			ResBody: map[string]string{
+				"user_id":         "blah",
+				"conversation_id": "blah",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			r := httptest.NewRequest(
+				"",
+				"/api/prefs"+test.Query,
+				nil,
+			)
+			w := httptest.NewRecorder()
+
+			GetPrefsHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := make(map[string]string)
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			}
+		})
+	}
+}
