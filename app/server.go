@@ -8,10 +8,23 @@ import (
 	"time"
 )
 
+func logging(f http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("path: %s, method: %s", r.URL.Path, r.Method)
+		f(w, r)
+	}
+}
+
 func main() {
 	httpMux := mux.NewRouter()
-	httpMux.HandleFunc("/api/prefs", handlers.PostPrefsHandler).Methods("POST")
-	httpMux.HandleFunc("/api/prefs", handlers.GetPrefsHandler).Methods("GET")
+	httpMux.HandleFunc(
+		"/api/prefs",
+		logging(handlers.PostPrefsHandler),
+	).Methods("POST")
+	httpMux.HandleFunc(
+		"/api/prefs",
+		logging(handlers.GetPrefsHandler),
+	).Methods("GET")
 
 	httpSrv := &http.Server{
 		Addr:         ":80",
