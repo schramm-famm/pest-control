@@ -117,7 +117,11 @@ func TestGetPrefsHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("", "/api/prefs"+test.Query, nil)
+			r := httptest.NewRequest(
+				"",
+				"/api/prefs"+test.Query,
+				nil,
+			)
 			w := httptest.NewRecorder()
 
 			GetPrefsHandler(w, r)
