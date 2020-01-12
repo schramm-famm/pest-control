@@ -75,3 +75,15 @@ func GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(resBody)
 }
+
+// PutPrefsHandler replaces, or creates if does not exist, a user's preferences
+func PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	reqBody := models.NewPreferences()
+	if err := parseReqBody(w, r.Body, reqBody); err != nil {
+		return
+	}
+
+	json.NewEncoder(w).Encode(reqBody)
+}

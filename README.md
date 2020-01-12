@@ -41,3 +41,32 @@ Retrieves preferences based on query.
 
 #### Query parameters
 * `conversation_id`: ID of the conversation (string, optional)
+
+### PUT api/prefs
+Replaces the preferences of a user or creates one if one does not already exist.
+
+#### Request body format
+```
+{
+    "global": {
+        "invitation": boolean (default: true),
+        "text_entered": boolean (default: true),
+        "text_modified": boolean (default: true),
+        "tag": boolean (default: true),
+        "role": boolean (default: true),
+    },
+    "conversation": [
+        {
+            "conversation_id": string (default: ""),
+            "text_entered": boolean (default: true),
+            "text_modified": boolean (default: true),
+            "tag": boolean (default: true),
+            "role": boolean (default: true),
+        }
+    ]
+}
+```
+
+All fields are optional. By default (i.e. if the request body is `{}`), all
+`global` fields are `true` and there are no conversation notification
+preferences.
