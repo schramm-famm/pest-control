@@ -87,3 +87,21 @@ func PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(reqBody)
 }
+
+// DeletePrefsHandler deletes a user's preferences
+func DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		errMsg := "Failed to parse query: " + err.Error()
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	resBody := map[string]string{
+		"user_id":         queryValues.Get("user_id"),
+		"conversation_id": queryValues.Get("conversation_id"),
+	}
+
+	json.NewEncoder(w).Encode(resBody)
+}

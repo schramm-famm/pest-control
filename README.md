@@ -70,3 +70,10 @@ Replaces the preferences of a user or creates one if one does not already exist.
 All fields are optional. By default (i.e. if the request body is `{}`), all
 `global` fields are `true` and there are no conversation notification
 preferences.
+
+### DELETE api/prefs
+Deletes preferences based on query. Deletes all of user's preferences if the
+`conversation_id` parameter is not set.
+
+#### Query parameters
+* `conversation_id`: ID of the conversation (string, optional)
