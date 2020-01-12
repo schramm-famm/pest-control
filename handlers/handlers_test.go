@@ -267,3 +267,73 @@ func TestDeletePrefsHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestPatchPrefsHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		ReqBody    interface{}
+		ResBody    models.Preferences
+	}{
+		{
+			Name:       "Successful default preference update",
+			StatusCode: http.StatusOK,
+			ReqBody:    map[string]interface{}{},
+			ResBody:    *models.NewPreferences(),
+		},
+		{
+			Name:       "Successful custom preference update",
+			StatusCode: http.StatusOK,
+			ReqBody: map[string]interface{}{
+				"global": map[string]bool{
+					"invitation":   false,
+					"text_entered": false,
+				},
+				"conversation": []map[string]bool{{
+					"tag": false,
+				}},
+			},
+			ResBody: models.Preferences{
+				Global: &models.GlobalPrefs{
+					Role:         true,
+					Tag:          true,
+					TextModified: true,
+				},
+				Conversation: []*models.ConversationPrefs{{
+					Role:         true,
+					TextEntered:  true,
+					TextModified: true,
+				}},
+			},
+		},
+		{
+			Name:       "Unsuccessful preference update with bad request",
+			StatusCode: http.StatusBadRequest,
+			ReqBody: map[string]string{
+				"global": "true",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			rBody, _ := json.Marshal(test.ReqBody)
+			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
+			w := httptest.NewRecorder()
+
+			PatchPrefsHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := models.Preferences{}
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			}
+		})
+	}
+}

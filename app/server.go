@@ -33,6 +33,10 @@ func main() {
 		"/api/prefs",
 		logging(handlers.DeletePrefsHandler),
 	).Methods("DELETE")
+	httpMux.HandleFunc(
+		"/api/prefs",
+		logging(handlers.PatchPrefsHandler),
+	).Methods("PATCH")
 
 	httpSrv := &http.Server{
 		Addr:         ":80",
