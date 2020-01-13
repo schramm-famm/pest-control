@@ -20,5 +20,5 @@ jobs:
       run: |
         go mod download
 
-    - name: Build and test
+    - name: Build and unit test
       run: make test
