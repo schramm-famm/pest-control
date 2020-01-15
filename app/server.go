@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"pest-control/handlers"
+	"pest-control/models"
 	"time"
 )
 
@@ -16,26 +17,32 @@ func logging(f http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	db, err := models.NewDB("mongodb://localhost:27017")
+	if err != nil {
+		log.Panic(err)
+	}
+	env := &handlers.Env{db}
+
 	httpMux := mux.NewRouter()
 	httpMux.HandleFunc(
 		"/api/prefs",
-		logging(handlers.PostPrefsHandler),
+		logging(env.PostPrefsHandler),
 	).Methods("POST")
 	httpMux.HandleFunc(
 		"/api/prefs",
-		logging(handlers.GetPrefsHandler),
+		logging(env.GetPrefsHandler),
 	).Methods("GET")
 	httpMux.HandleFunc(
 		"/api/prefs",
-		logging(handlers.PutPrefsHandler),
+		logging(env.PutPrefsHandler),
 	).Methods("PUT")
 	httpMux.HandleFunc(
 		"/api/prefs",
-		logging(handlers.DeletePrefsHandler),
+		logging(env.DeletePrefsHandler),
 	).Methods("DELETE")
 	httpMux.HandleFunc(
 		"/api/prefs",
-		logging(handlers.PatchPrefsHandler),
+		logging(env.PatchPrefsHandler),
 	).Methods("PATCH")
 
 	httpSrv := &http.Server{

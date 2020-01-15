@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+type mockDB struct{}
+
 func TestPostPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
@@ -63,7 +65,8 @@ func TestPostPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			PostPrefsHandler(w, r)
+			env := &Env{DB: &mockDB{}}
+			env.PostPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
@@ -124,7 +127,8 @@ func TestGetPrefsHandler(t *testing.T) {
 			)
 			w := httptest.NewRecorder()
 
-			GetPrefsHandler(w, r)
+			env := &Env{DB: &mockDB{}}
+			env.GetPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
@@ -194,7 +198,8 @@ func TestPutPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("PUT", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			PutPrefsHandler(w, r)
+			env := &Env{DB: &mockDB{}}
+			env.PutPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
@@ -251,7 +256,8 @@ func TestDeletePrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("DELETE", "/api/prefs"+test.Query, nil)
 			w := httptest.NewRecorder()
 
-			DeletePrefsHandler(w, r)
+			env := &Env{DB: &mockDB{}}
+			env.DeletePrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
@@ -321,7 +327,8 @@ func TestPatchPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			PatchPrefsHandler(w, r)
+			env := &Env{DB: &mockDB{}}
+			env.PatchPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)

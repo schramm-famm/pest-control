@@ -10,6 +10,10 @@ import (
 	"pest-control/models"
 )
 
+type Env struct {
+	DB models.Datastore
+}
+
 func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Preferences) error {
 	bodyBytes, err := ioutil.ReadAll(body)
 	if err != nil {
@@ -47,7 +51,7 @@ func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Pre
 }
 
 // PostPrefsHandler creates new preferences for a user
-func PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	reqBody := models.NewPreferences()
@@ -59,7 +63,7 @@ func PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPrefsHandler gets filtered preferences for a user
-func GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		errMsg := "Failed to parse query: " + err.Error()
@@ -77,7 +81,7 @@ func GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PutPrefsHandler replaces, or creates if does not exist, a user's preferences
-func PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	reqBody := models.NewPreferences()
@@ -89,7 +93,7 @@ func PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeletePrefsHandler deletes a user's preferences
-func DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
 		errMsg := "Failed to parse query: " + err.Error()
@@ -107,7 +111,7 @@ func DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PatchPrefsHandler updates a user's preferences
-func PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	reqBody := models.NewPreferences()
