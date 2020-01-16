@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"pest-control/models"
+	"strconv"
 )
 
 type Env struct {
@@ -51,6 +53,30 @@ func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Pre
 	return nil
 }
 
+func parseIntParams(query url.Values, params ...string) ([]int, error) {
+	vals := []int{}
+	for _, param := range params {
+		var (
+			val int
+			err error
+		)
+		str := query.Get(param)
+		if str != "" {
+			val, err = strconv.Atoi(str)
+			if err != nil {
+				errMsg := fmt.Sprintf(
+					"invalid query format: query parameter '%s' must be an integer",
+					param,
+				)
+				return nil, errors.New(errMsg)
+			}
+		}
+		vals = append(vals, val)
+	}
+
+	return vals, nil
+}
+
 // PostPrefsHandler creates new preferences for a user
 func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
@@ -91,9 +117,16 @@ func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := map[string]string{
-		"user_id":         queryValues.Get("user_id"),
-		"conversation_id": queryValues.Get("conversation_id"),
+	vals, err := parseIntParams(queryValues, "user_id", "conversation_id")
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resBody := models.PrefsFilter{
+		UserID:         vals[0],
+		ConversationID: vals[1],
 	}
 
 	json.NewEncoder(w).Encode(resBody)
@@ -121,9 +154,16 @@ func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resBody := map[string]string{
-		"user_id":         queryValues.Get("user_id"),
-		"conversation_id": queryValues.Get("conversation_id"),
+	vals, err := parseIntParams(queryValues, "user_id", "conversation_id")
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resBody := models.PrefsFilter{
+		UserID:         vals[0],
+		ConversationID: vals[1],
 	}
 
 	json.NewEncoder(w).Encode(resBody)

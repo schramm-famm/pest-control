@@ -7,7 +7,7 @@ import (
 )
 
 type Datastore interface {
-	GetPrefs(string, string) (*Preferences, error)
+	GetPrefs(int, int) (*Preferences, error)
 	CreatePrefs(Preferences) (string, error)
 }
 

@@ -91,32 +91,27 @@ func TestGetPrefsHandler(t *testing.T) {
 		Name       string
 		StatusCode int
 		Query      string
-		ResBody    map[string]string
+		ResBody    models.PrefsFilter
 	}{
 		{
 			Name:       "Successful preference retrieval with no query",
 			StatusCode: http.StatusOK,
-			ResBody: map[string]string{
-				"user_id":         "",
-				"conversation_id": "",
-			},
 		},
 		{
 			Name:       "Successful preference retrieval with user query",
 			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "",
+			Query:      "?user_id=2",
+			ResBody: models.PrefsFilter{
+				UserID: 2,
 			},
 		},
 		{
 			Name:       "Successful preference retrieval with conversation query",
 			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah&conversation_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "blah",
+			Query:      "?user_id=2&conversation_id=12",
+			ResBody: models.PrefsFilter{
+				UserID:         2,
+				ConversationID: 12,
 			},
 		},
 	}
@@ -138,7 +133,7 @@ func TestGetPrefsHandler(t *testing.T) {
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := make(map[string]string)
+				resBody := models.PrefsFilter{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
 					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)
@@ -224,32 +219,27 @@ func TestDeletePrefsHandler(t *testing.T) {
 		Name       string
 		StatusCode int
 		Query      string
-		ResBody    map[string]string
+		ResBody    models.PrefsFilter
 	}{
 		{
 			Name:       "Successful preference deletion",
 			StatusCode: http.StatusOK,
-			ResBody: map[string]string{
-				"user_id":         "",
-				"conversation_id": "",
-			},
 		},
 		{
 			Name:       "Successful preference deletion with user query",
 			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "",
+			Query:      "?user_id=2",
+			ResBody: models.PrefsFilter{
+				UserID: 2,
 			},
 		},
 		{
 			Name:       "Successful preference deletion with conversation query",
 			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah&conversation_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "blah",
+			Query:      "?user_id=2&conversation_id=12",
+			ResBody: models.PrefsFilter{
+				UserID:         2,
+				ConversationID: 12,
 			},
 		},
 	}
@@ -267,7 +257,7 @@ func TestDeletePrefsHandler(t *testing.T) {
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := make(map[string]string)
+				resBody := models.PrefsFilter{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
 					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)

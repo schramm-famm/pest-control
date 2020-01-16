@@ -14,8 +14,8 @@ import (
 var ErrPrefsExists = errors.New("preferences for user already exists")
 
 type PrefsFilter struct {
-	UserID         string `bson:"user_id,omitempty"`
-	ConversationID string `bson:"conversation.conversation_id,omitempty"`
+	UserID         int `json:"user_id,omitempty" bson:"user_id,omitempty"`
+	ConversationID int `json:"conversation_id,omitempty" bson:"conversation.conversation_id,omitempty"`
 }
 
 type GlobalPrefs struct {
@@ -27,16 +27,16 @@ type GlobalPrefs struct {
 }
 
 type ConversationPrefs struct {
-	ConversationID string `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
-	TextEntered    bool   `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
-	TextModified   bool   `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
-	Tag            bool   `json:"tag,omitempty" bson:"tag,omitempty"`
-	Role           bool   `json:"role,omitempty" bson:"role,omitempty"`
+	ConversationID int  `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
+	TextEntered    bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
+	TextModified   bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
+	Tag            bool `json:"tag,omitempty" bson:"tag,omitempty"`
+	Role           bool `json:"role,omitempty" bson:"role,omitempty"`
 }
 
 type Preferences struct {
 	ID           string               `json:"_id,omitempty" bson:"_id,omitempty"`
-	UserID       string               `json:"user_id,omitempty" bson:"user_id,omitempty"`
+	UserID       int                  `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	Global       *GlobalPrefs         `json:"global,omitempty" bson:"global,omitempty"`
 	Conversation []*ConversationPrefs `json:"conversation,omitempty" bson:"conversation,omitempty"`
 }
@@ -53,17 +53,15 @@ func NewGlobalPrefs() *GlobalPrefs {
 
 func NewConversationPrefs() *ConversationPrefs {
 	return &ConversationPrefs{
-		ConversationID: "",
-		TextEntered:    true,
-		TextModified:   true,
-		Tag:            true,
-		Role:           true,
+		TextEntered:  true,
+		TextModified: true,
+		Tag:          true,
+		Role:         true,
 	}
 }
 
 func NewPreferences() *Preferences {
 	return &Preferences{
-		UserID: "",
 		Global: NewGlobalPrefs(),
 	}
 }
@@ -76,7 +74,7 @@ func (c *ConversationPrefs) String() string {
 	return fmt.Sprintf("%+v", *c)
 }
 
-func (db *DB) GetPrefs(userID string, conversationID string) (*Preferences, error) {
+func (db *DB) GetPrefs(userID, conversationID int) (*Preferences, error) {
 	filter, err := bson.Marshal(PrefsFilter{
 		UserID:         userID,
 		ConversationID: conversationID,
@@ -101,14 +99,14 @@ func (db *DB) GetPrefs(userID string, conversationID string) (*Preferences, erro
 }
 
 func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
-	if _, err := db.GetPrefs(prefs.UserID, ""); err != nil && err != mongo.ErrNoDocuments {
+	if _, err := db.GetPrefs(prefs.UserID, 0); err != nil && err != mongo.ErrNoDocuments {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
 		)
 		return "", err
 	} else if err == nil {
-		log.Printf("preferences for user (%s) already exists", prefs.UserID)
+		log.Printf("preferences for user (%d) already exists", prefs.UserID)
 		return "", ErrPrefsExists
 	}
 
