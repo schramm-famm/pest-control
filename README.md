@@ -22,7 +22,7 @@ Creates a new set of preferences for a user.
     },
     "conversation": [
         {
-            "conversation_id": string (default: ""),
+            "conversation_id": integer (default: 0),
             "text_entered": boolean (default: true),
             "text_modified": boolean (default: true),
             "tag": boolean (default: true),
@@ -36,11 +36,33 @@ All fields are optional. By default (i.e. if the request body is `{}`), all
 `global` fields are `true` and there are no conversation notification
 preferences.
 
+#### Response body format
+The body of a 200 OK response will contain a representation of the created
+resource. An example response body is shown below.
+```
+{
+    "_id": string,
+    "user_id": string,
+    "global": {
+        "text_entered": true,
+        "text_modified": true
+    },
+    "conversation": [
+        {
+            "conversation_id": 13,
+            "text_entered": true
+        }
+    ]
+}
+```
+A 409 Conflict response will be returned if preferences already exist for the
+user.
+
 ### GET api/prefs
 Retrieves preferences based on query.
 
 #### Query parameters
-* `conversation_id`: ID of the conversation (string, optional)
+* `conversation_id`: ID of the conversation (integer, optional)
 
 ### PUT api/prefs
 Replaces the preferences of a user or creates one if one does not already exist.
@@ -57,7 +79,7 @@ Replaces the preferences of a user or creates one if one does not already exist.
     },
     "conversation": [
         {
-            "conversation_id": string (default: ""),
+            "conversation_id": integer (default: 0),
             "text_entered": boolean (default: true),
             "text_modified": boolean (default: true),
             "tag": boolean (default: true),
@@ -76,7 +98,7 @@ Deletes preferences based on query. Deletes all of user's preferences if the
 `conversation_id` parameter is not set.
 
 #### Query parameters
-* `conversation_id`: ID of the conversation (string, optional)
+* `conversation_id`: ID of the conversation (integer, optional)
 
 ### PATCH api/prefs
 Updates the preferences of a user.
@@ -93,7 +115,7 @@ Updates the preferences of a user.
     },
     "conversation": [
         {
-            "conversation_id": string (default: ""),
+            "conversation_id": integer (default: 0),
             "text_entered": boolean (default: true),
             "text_modified": boolean (default: true),
             "tag": boolean (default: true),
