@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -58,6 +59,24 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	if err := parseReqBody(w, r.Body, reqBody); err != nil {
 		return
 	}
+
+	prefsID, err := env.DB.CreatePrefs(*reqBody)
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"failed to create prefs (%+v): %s",
+			*reqBody,
+			err.Error(),
+		)
+		log.Println(errMsg)
+		responseCode := http.StatusInternalServerError
+		if err == models.ErrPrefsExists {
+			responseCode = http.StatusConflict
+		}
+		http.Error(w, errMsg, responseCode)
+		return
+	}
+
+	reqBody.ID = prefsID
 
 	json.NewEncoder(w).Encode(reqBody)
 }

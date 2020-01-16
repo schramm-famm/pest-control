@@ -10,8 +10,6 @@ import (
 	"testing"
 )
 
-type mockDB struct{}
-
 func TestPostPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
@@ -61,11 +59,16 @@ func TestPostPrefsHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
+			test.ResBody.ID = "blah"
 			rBody, _ := json.Marshal(test.ReqBody)
 			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &mockDB{}}
+			mDB := &models.MockDB{
+				ID: test.ResBody.ID,
+			}
+
+			env := &Env{DB: mDB}
 			env.PostPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
@@ -127,7 +130,7 @@ func TestGetPrefsHandler(t *testing.T) {
 			)
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &mockDB{}}
+			env := &Env{DB: &models.MockDB{}}
 			env.GetPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
@@ -198,7 +201,7 @@ func TestPutPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("PUT", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &mockDB{}}
+			env := &Env{DB: &models.MockDB{}}
 			env.PutPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
@@ -256,7 +259,7 @@ func TestDeletePrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("DELETE", "/api/prefs"+test.Query, nil)
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &mockDB{}}
+			env := &Env{DB: &models.MockDB{}}
 			env.DeletePrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
@@ -327,7 +330,7 @@ func TestPatchPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &mockDB{}}
+			env := &Env{DB: &models.MockDB{}}
 			env.PatchPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {

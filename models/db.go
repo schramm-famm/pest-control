@@ -7,6 +7,8 @@ import (
 )
 
 type Datastore interface {
+	GetPrefs(string, string) (*Preferences, error)
+	CreatePrefs(Preferences) (string, error)
 }
 
 type DB struct {
