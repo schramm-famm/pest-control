@@ -7,8 +7,12 @@ type MockDB struct {
 	CreateErr error
 }
 
-func (mdb *MockDB) GetPrefs(userID, conversationID int) (*Preferences, error) {
-	return mdb.Prefs, mdb.GetErr
+func (mdb *MockDB) GetPrefs(userID int) (*GlobalPrefs, error) {
+	return mdb.Prefs.Global, mdb.GetErr
+}
+
+func (mdb *MockDB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, error) {
+	return mdb.Prefs.Conversation[0], mdb.GetErr
 }
 
 func (mdb *MockDB) CreatePrefs(prefs Preferences) (string, error) {

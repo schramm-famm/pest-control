@@ -11,6 +11,9 @@ import (
 	"net/url"
 	"pest-control/models"
 	"strconv"
+
+	"github.com/gorilla/mux"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Env struct {
@@ -53,21 +56,19 @@ func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Pre
 	return nil
 }
 
-func parseIntParams(query url.Values, params ...string) ([]int, error) {
-	vals := []int{}
-	for _, param := range params {
-		var (
-			val int
-			err error
-		)
-		str := query.Get(param)
+func parseStringToInt(strings ...string) ([]int, error) {
+	var (
+		val int
+		err error
+	)
+
+	vals := make([]int, 0)
+	for _, str := range strings {
+		val = 0
 		if str != "" {
 			val, err = strconv.Atoi(str)
 			if err != nil {
-				errMsg := fmt.Sprintf(
-					"invalid query format: query parameter '%s' must be an integer",
-					param,
-				)
+				errMsg := "failed to convert string to int: " + err.Error()
 				return nil, errors.New(errMsg)
 			}
 		}
@@ -104,10 +105,11 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	reqBody.ID = prefsID
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reqBody)
 }
 
-// GetPrefsHandler gets filtered preferences for a user
+// GetPrefsHandler gets a user's global preferences
 func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
@@ -117,31 +119,72 @@ func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vals, err := parseIntParams(queryValues, "user_id", "conversation_id")
+	vals, err := parseStringToInt(queryValues.Get("user_id"))
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resBody := models.PrefsFilter{
-		UserID:         vals[0],
-		ConversationID: vals[1],
-	}
-
-	json.NewEncoder(w).Encode(resBody)
-}
-
-// PutPrefsHandler replaces, or creates if does not exist, a user's preferences
-func (env *Env) PutPrefsHandler(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	reqBody := models.NewPreferences()
-	if err := parseReqBody(w, r.Body, reqBody); err != nil {
+	prefs, err := env.DB.GetPrefs(vals[0])
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to get preferences for query (%s): %s",
+			r.URL.RawQuery,
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == mongo.ErrNoDocuments {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
 		return
 	}
 
-	json.NewEncoder(w).Encode(reqBody)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(prefs)
+}
+
+// GetPrefsConvHandler gets a user's preferences for a conversation
+func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		errMsg := "Failed to parse query: " + err.Error()
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	vals, err := parseStringToInt(queryValues.Get("user_id"), vars["conversation"])
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	prefs, err := env.DB.GetPrefsConv(vals[0], vals[1])
+	if err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to get preferences for query (%s): %s",
+			r.URL.RawQuery,
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == mongo.ErrNoDocuments {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(prefs)
 }
 
 // DeletePrefsHandler deletes a user's preferences
@@ -154,7 +197,7 @@ func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vals, err := parseIntParams(queryValues, "user_id", "conversation_id")
+	vals, err := parseStringToInt(queryValues.Get("user_id"), queryValues.Get("conversation_id"))
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)

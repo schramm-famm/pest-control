@@ -33,9 +33,9 @@ func main() {
 		logging(env.GetPrefsHandler),
 	).Methods("GET")
 	httpMux.HandleFunc(
-		"/api/prefs",
-		logging(env.PutPrefsHandler),
-	).Methods("PUT")
+		"/api/prefs/conversations/{conversation:[0-9]+}",
+		logging(env.GetPrefsConvHandler),
+	).Methods("GET")
 	httpMux.HandleFunc(
 		"/api/prefs",
 		logging(env.DeletePrefsHandler),

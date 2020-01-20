@@ -59,39 +59,37 @@ A 409 Conflict response will be returned if preferences already exist for the
 user.
 
 ### GET api/prefs
-Retrieves preferences based on query.
+Retrieves global user preferences.
 
-#### Query parameters
-* `conversation_id`: ID of the conversation (integer, optional)
-
-### PUT api/prefs
-Replaces the preferences of a user or creates one if one does not already exist.
-
-#### Request body format
+#### Response body format
+The body of a 200 OK response will contain a representation of the queried
+resource. An example response body is shown below.
 ```
 {
-    "global": {
-        "invitation": boolean (default: true),
-        "text_entered": boolean (default: true),
-        "text_modified": boolean (default: true),
-        "tag": boolean (default: true),
-        "role": boolean (default: true),
-    },
-    "conversation": [
-        {
-            "conversation_id": integer (default: 0),
-            "text_entered": boolean (default: true),
-            "text_modified": boolean (default: true),
-            "tag": boolean (default: true),
-            "role": boolean (default: true),
-        }
-    ]
+    "invitation": true,
+    "text_entered": true,
+    "text_modified": true
 }
 ```
+A 404 Not Found response will be returned, if the user's preferences do not
+exist, with a body that is a string indicating the error.
 
-All fields are optional. By default (i.e. if the request body is `{}`), all
-`global` fields are `true` and there are no conversation notification
-preferences.
+### GET api/prefs/conversations/{conversation_id}
+Retrieves user preferences for a specific conversation.
+
+#### Response body format
+The body of a 200 OK response will contain a representation of the queried
+resource. An example response body is shown below.
+```
+{
+    "text_entered": true,
+    "text_modified": true
+}
+```
+A 404 Not Found response will be returned, if the user's preferences do not
+exist, with a body that is a string indicating the error.
+
+
 
 ### DELETE api/prefs
 Deletes preferences based on query. Deletes all of user's preferences if the

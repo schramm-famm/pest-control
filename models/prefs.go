@@ -9,6 +9,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 var ErrPrefsExists = errors.New("preferences for user already exists")
@@ -74,18 +75,16 @@ func (c *ConversationPrefs) String() string {
 	return fmt.Sprintf("%+v", *c)
 }
 
-func (db *DB) GetPrefs(userID, conversationID int) (*Preferences, error) {
-	filter, err := bson.Marshal(PrefsFilter{
-		UserID:         userID,
-		ConversationID: conversationID,
-	})
+func (db *DB) GetPrefs(userID int) (*GlobalPrefs, error) {
+	filter, err := bson.Marshal(PrefsFilter{UserID: userID})
 	if err != nil {
 		log.Printf("failed to create query filter: %s", err.Error())
 		return nil, err
 	}
 
+	opts := options.FindOne().SetProjection(bson.D{{"global", 1}})
 	collection := db.Database("pest-control").Collection("prefs")
-	singleResult := collection.FindOne(context.TODO(), filter)
+	singleResult := collection.FindOne(context.TODO(), filter, opts)
 	if singleResult.Err() != nil {
 		return nil, singleResult.Err()
 	}
@@ -95,11 +94,36 @@ func (db *DB) GetPrefs(userID, conversationID int) (*Preferences, error) {
 		log.Printf("failed to decode retrieved data (%+v): %s", singleResult, err.Error())
 		return nil, err
 	}
-	return prefs, nil
+	return prefs.Global, nil
+}
+
+func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, error) {
+	filter, err := bson.Marshal(PrefsFilter{
+		UserID:         userID,
+		ConversationID: conversationID,
+	})
+	if err != nil {
+		log.Printf("failed to create query filter: %s", err.Error())
+		return nil, err
+	}
+
+	opts := options.FindOne().SetProjection(bson.D{{"conversation", 1}})
+	collection := db.Database("pest-control").Collection("prefs")
+	singleResult := collection.FindOne(context.TODO(), filter, opts)
+	if singleResult.Err() != nil {
+		return nil, singleResult.Err()
+	}
+
+	prefs := &Preferences{}
+	if err := singleResult.Decode(prefs); err != nil {
+		log.Printf("failed to decode retrieved data (%+v): %s", singleResult, err.Error())
+		return nil, err
+	}
+	return prefs.Conversation[0], nil
 }
 
 func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
-	if _, err := db.GetPrefs(prefs.UserID, 0); err != nil && err != mongo.ErrNoDocuments {
+	if _, err := db.GetPrefs(prefs.UserID); err != nil && err != mongo.ErrNoDocuments {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
