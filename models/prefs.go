@@ -18,12 +18,11 @@ var (
 )
 
 type PrefsFilter struct {
-	UserID         int `json:"user_id,omitempty" bson:"user_id,omitempty"`
+	UserID         int `json:"user_id" bson:"user_id"`
 	ConversationID int `json:"conversation_id,omitempty" bson:"conversation.conversation_id,omitempty"`
 }
 
 type GlobalPrefs struct {
-	UserID       int  `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	Invitation   bool `json:"invitation,omitempty" bson:"invitation,omitempty"`
 	TextEntered  bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
 	TextModified bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
@@ -32,7 +31,6 @@ type GlobalPrefs struct {
 }
 
 type ConversationPrefs struct {
-	UserID         int  `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	ConversationID int  `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
 	TextEntered    bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
 	TextModified   bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
@@ -104,15 +102,17 @@ func (db *DB) GetPrefs(userID int) (*GlobalPrefs, error) {
 
 func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, error) {
 	filter, err := bson.Marshal(PrefsFilter{
-		UserID:         userID,
-		ConversationID: conversationID,
+		UserID: userID,
 	})
 	if err != nil {
 		log.Printf("failed to create query filter: %s", err.Error())
 		return nil, err
 	}
 
-	opts := options.FindOne().SetProjection(bson.D{{"conversation", 1}})
+	opts := options.FindOne().SetProjection(bson.D{{
+		"conversation",
+		bson.D{{"$elemMatch", bson.D{{"conversation_id", conversationID}}}},
+	}})
 	collection := db.Database("pest-control").Collection("prefs")
 	singleResult := collection.FindOne(context.TODO(), filter, opts)
 	if singleResult.Err() != nil {
@@ -123,6 +123,10 @@ func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, erro
 	if err := singleResult.Decode(prefs); err != nil {
 		log.Printf("failed to decode retrieved data (%+v): %s", singleResult, err.Error())
 		return nil, err
+	}
+
+	if len(prefs.Conversation) == 0 {
+		return nil, mongo.ErrNoDocuments
 	}
 	return prefs.Conversation[0], nil
 }
@@ -155,8 +159,8 @@ func (db *DB) CreatePrefs(prefs *Preferences) error {
 	return nil
 }
 
-func (db *DB) CreatePrefsConv(convPrefs *ConversationPrefs) error {
-	if _, err := db.GetPrefsConv(convPrefs.UserID, convPrefs.ConversationID); err != nil && err != mongo.ErrNoDocuments {
+func (db *DB) CreatePrefsConv(userID int, convPrefs *ConversationPrefs) error {
+	if _, err := db.GetPrefsConv(userID, convPrefs.ConversationID); err != nil && err != mongo.ErrNoDocuments {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
@@ -166,17 +170,16 @@ func (db *DB) CreatePrefsConv(convPrefs *ConversationPrefs) error {
 		log.Printf(
 			"conversation (%d) preferences for user (%d) already exists",
 			convPrefs.ConversationID,
-			convPrefs.UserID,
+			userID,
 		)
 		return ErrPrefsExists
 	}
 
-	filter, err := bson.Marshal(PrefsFilter{UserID: convPrefs.UserID})
+	filter, err := bson.Marshal(PrefsFilter{UserID: userID})
 	if err != nil {
 		log.Printf("failed to create query filter: %s", err.Error())
 		return err
 	}
-	convPrefs.UserID = 0
 	update := bson.D{{"$push", bson.D{{Key: "conversation", Value: convPrefs}}}}
 	collection := db.Database("pest-control").Collection("prefs")
 	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
@@ -257,16 +260,15 @@ func (db *DB) DeletePrefsConv(userID, conversationID int) error {
 	return nil
 }
 
-func (db *DB) PatchPrefs(prefs *GlobalPrefs) error {
+func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefs) error {
 	filter, err := bson.Marshal(PrefsFilter{
-		UserID: prefs.UserID,
+		UserID: userID,
 	})
 	if err != nil {
 		log.Printf("failed to create query filter: %s", err.Error())
 		return err
 	}
 
-	prefs.UserID = 0
 	update := bson.D{{
 		"$set",
 		bson.D{{

@@ -162,14 +162,12 @@ func TestGetPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		Query      string
 		ResBody    models.GlobalPrefs
 		Error      error
 	}{
 		{
-			Name:       "Successful preference retrieval with user query",
+			Name:       "Successful preference retrieval",
 			StatusCode: http.StatusOK,
-			Query:      "?user_id=2",
 			ResBody: models.GlobalPrefs{
 				TextModified: true,
 				TextEntered:  true,
@@ -178,18 +176,13 @@ func TestGetPrefsHandler(t *testing.T) {
 		{
 			Name:       "Unsuccessful preference retrieval with non-existent user",
 			StatusCode: http.StatusNotFound,
-			Query:      "?user_id=2",
 			Error:      mongo.ErrNoDocuments,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest(
-				"",
-				"/api/prefs"+test.Query,
-				nil,
-			)
+			r := httptest.NewRequest("", "/api/prefs", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{
@@ -254,11 +247,7 @@ func TestGetPrefsConvHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest(
-				"",
-				"/api/prefs/conversations/1?user_id=2",
-				nil,
-			)
+			r := httptest.NewRequest("", "/api/prefs/conversations/1", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{
@@ -324,7 +313,7 @@ func TestDeletePrefsHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs?user_id=2", nil)
+			r := httptest.NewRequest("DELETE", "/api/prefs", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
@@ -365,7 +354,7 @@ func TestDeletePrefsConvHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs/conversations/1?user_id=2", nil)
+			r := httptest.NewRequest("DELETE", "/api/prefs/conversations/1", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}

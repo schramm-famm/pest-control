@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"net/url"
 	"pest-control/models"
 	"strconv"
 
@@ -87,8 +86,16 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := env.DB.CreatePrefs(reqBody)
+	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	reqBody.UserID = vals[0]
+
+	if err = env.DB.CreatePrefs(reqBody); err != nil {
 		errMsg := fmt.Sprintf(
 			"failed to create prefs (%+v): %s",
 			*reqBody,
@@ -118,7 +125,14 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := env.DB.CreatePrefsConv(reqBody); err != nil {
+	vals, err := parseStringToInt(r.Header.Get("User-ID"))
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := env.DB.CreatePrefsConv(vals[0], reqBody); err != nil {
 		errMsg := fmt.Sprintf(
 			"failed to create conversation prefs (%+v): %s",
 			*reqBody,
@@ -139,15 +153,7 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 // GetPrefsHandler gets a user's global preferences
 func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		errMsg := "failed to parse query: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
-		return
-	}
-
-	vals, err := parseStringToInt(queryValues.Get("user_id"))
+	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -178,15 +184,7 @@ func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		errMsg := "failed to parse query: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
-		return
-	}
-
-	vals, err := parseStringToInt(queryValues.Get("user_id"), vars["conversation"])
+	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -215,15 +213,7 @@ func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 // DeletePrefsHandler deletes a user's preferences
 func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		errMsg := "Failed to parse query: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
-		return
-	}
-
-	vals, err := parseStringToInt(queryValues.Get("user_id"))
+	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -252,15 +242,7 @@ func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	queryValues, err := url.ParseQuery(r.URL.RawQuery)
-	if err != nil {
-		errMsg := "failed to parse query: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
-		return
-	}
-
-	vals, err := parseStringToInt(queryValues.Get("user_id"), vars["conversation"])
+	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -294,7 +276,14 @@ func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := env.DB.PatchPrefs(reqBody); err != nil {
+	vals, err := parseStringToInt(r.Header.Get("User-ID"))
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := env.DB.PatchPrefs(vals[0], reqBody); err != nil {
 		errMsg := fmt.Sprintf(
 			"unable to update preferences for user: %s",
 			err.Error(),

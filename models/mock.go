@@ -21,7 +21,7 @@ func (mdb *MockDB) CreatePrefs(prefs *Preferences) error {
 	return mdb.CreateErr
 }
 
-func (mdb *MockDB) CreatePrefsConv(convPrefs *ConversationPrefs) error {
+func (mdb *MockDB) CreatePrefsConv(userID int, convPrefs *ConversationPrefs) error {
 	return mdb.CreateErr
 }
 
@@ -33,6 +33,6 @@ func (mdb *MockDB) DeletePrefsConv(userID, conversationID int) error {
 	return mdb.DeleteErr
 }
 
-func (mdb *MockDB) PatchPrefs(prefs *GlobalPrefs) error {
+func (mdb *MockDB) PatchPrefs(userID int, prefs *GlobalPrefs) error {
 	return mdb.PatchErr
 }
