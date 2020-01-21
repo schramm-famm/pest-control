@@ -12,7 +12,10 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var ErrPrefsExists = errors.New("preferences for user already exists")
+var (
+	ErrPrefsExists = errors.New("preferences for user already exists")
+	ErrPrefsDNE    = errors.New("preferences for user does not exist")
+)
 
 type PrefsFilter struct {
 	UserID         int `json:"user_id,omitempty" bson:"user_id,omitempty"`
@@ -145,4 +148,65 @@ func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
 		return "", err
 	}
 	return insertResult.InsertedID.(primitive.ObjectID).String(), nil
+}
+
+func (db *DB) DeletePrefs(userID int) error {
+	filter, err := bson.Marshal(PrefsFilter{UserID: userID})
+	if err != nil {
+		log.Printf("failed to create query filter: %s", err.Error())
+		return err
+	}
+
+	collection := db.Database("pest-control").Collection("prefs")
+	deleteResult, err := collection.DeleteOne(context.TODO(), filter)
+	if err != nil {
+		log.Printf(
+			"failed to delete preferences (%+v) from MongoDB collection: %s",
+			filter,
+			err.Error(),
+		)
+		return err
+	}
+
+	// No preferences were deleted which means that the user did not have any
+	// preferences to begin with
+	if deleteResult.DeletedCount == 0 {
+		return ErrPrefsDNE
+	}
+	return nil
+}
+
+func (db *DB) DeletePrefsConv(userID, conversationID int) error {
+	filter, err := bson.Marshal(PrefsFilter{
+		UserID: userID,
+	})
+	if err != nil {
+		log.Printf("failed to create query filter: %s", err.Error())
+		return err
+	}
+	update := bson.D{{
+		"$pull",
+		bson.D{{
+			Key:   "conversation",
+			Value: bson.D{{Key: "conversation_id", Value: conversationID}},
+		}},
+	}}
+
+	collection := db.Database("pest-control").Collection("prefs")
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Printf(
+			"failed to delete preferences (%+v) from MongoDB collection: %s",
+			filter,
+			err.Error(),
+		)
+		return err
+	}
+
+	// No preferences were deleted which means that the user did not have any
+	// preferences to begin with
+	if updateResult.ModifiedCount == 0 {
+		return ErrPrefsDNE
+	}
+	return nil
 }

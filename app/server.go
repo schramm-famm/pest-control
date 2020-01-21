@@ -41,6 +41,10 @@ func main() {
 		logging(env.DeletePrefsHandler),
 	).Methods("DELETE")
 	httpMux.HandleFunc(
+		"/api/prefs/conversations/{conversation:[0-9]+}",
+		logging(env.DeletePrefsConvHandler),
+	).Methods("DELETE")
+	httpMux.HandleFunc(
 		"/api/prefs",
 		logging(env.PatchPrefsHandler),
 	).Methods("PATCH")

@@ -240,50 +240,79 @@ func TestDeletePrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		Query      string
-		ResBody    models.PrefsFilter
+		Error      error
 	}{
 		{
 			Name:       "Successful preference deletion",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusNoContent,
 		},
 		{
-			Name:       "Successful preference deletion with user query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=2",
-			ResBody: models.PrefsFilter{
-				UserID: 2,
-			},
-		},
-		{
-			Name:       "Successful preference deletion with conversation query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=2&conversation_id=12",
-			ResBody: models.PrefsFilter{
-				UserID:         2,
-				ConversationID: 12,
-			},
+			Name:       "Unsuccessful preference deletion for non-existent resource",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs"+test.Query, nil)
+			r := httptest.NewRequest("DELETE", "/api/prefs?user_id=2", nil)
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &models.MockDB{}}
+			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
 			env.DeletePrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
 			}
 
-			if w.Code == http.StatusOK {
-				resBody := models.PrefsFilter{}
-				_ = json.NewDecoder(w.Body).Decode(&resBody)
-				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)
-				}
+			if w.Code > http.StatusNoContent &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
+			}
+		})
+	}
+}
+
+func TestDeletePrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		Error      error
+	}{
+		{
+			Name:       "Successful conversation preference deletion",
+			StatusCode: http.StatusNoContent,
+		},
+		{
+			Name:       "Unsuccessful conversation preference deletion for non-existent resource",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsDNE,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			r := httptest.NewRequest("DELETE", "/api/prefs/conversations/1?user_id=2", nil)
+			w := httptest.NewRecorder()
+
+			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
+			env.DeletePrefsHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code > http.StatusNoContent &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}

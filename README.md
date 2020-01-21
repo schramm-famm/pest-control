@@ -37,7 +37,7 @@ All fields are optional. By default (i.e. if the request body is `{}`), all
 preferences.
 
 #### Response body format
-The body of a 200 OK response will contain a representation of the created
+The body of a `200 OK` response will contain a representation of the created
 resource. An example response body is shown below.
 ```
 {
@@ -55,14 +55,14 @@ resource. An example response body is shown below.
     ]
 }
 ```
-A 409 Conflict response will be returned if preferences already exist for the
+A `409 Conflict` response will be returned if preferences already exist for the
 user.
 
 ### GET api/prefs
 Retrieves global user preferences.
 
 #### Response body format
-The body of a 200 OK response will contain a representation of the queried
+The body of a `200 OK` response will contain a representation of the queried
 resource. An example response body is shown below.
 ```
 {
@@ -71,14 +71,14 @@ resource. An example response body is shown below.
     "text_modified": true
 }
 ```
-A 404 Not Found response will be returned, if the user's preferences do not
+A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
 
 ### GET api/prefs/conversations/{conversation_id}
 Retrieves user preferences for a specific conversation.
 
 #### Response body format
-The body of a 200 OK response will contain a representation of the queried
+The body of a `200 OK` response will contain a representation of the queried
 resource. An example response body is shown below.
 ```
 {
@@ -86,17 +86,25 @@ resource. An example response body is shown below.
     "text_modified": true
 }
 ```
-A 404 Not Found response will be returned, if the user's preferences do not
+A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
 
-
-
 ### DELETE api/prefs
-Deletes preferences based on query. Deletes all of user's preferences if the
-`conversation_id` parameter is not set.
+Deletes user's preferences.
 
-#### Query parameters
-* `conversation_id`: ID of the conversation (integer, optional)
+#### Response body format
+A successful deletion will result in a `204 No Content` response with no body.
+If the user's preferences do not exist, the response will have a status of `404
+Not Found` and a body that is a string indicating the error.
+
+### DELETE api/prefs/conversations/{conversation_id}
+Deletes user's preferences for a specific conversation.
+
+#### Response body format
+A successful deletion will result in a `204 No Content` response with no body.
+If the user's preferences for the conversation does not exist, the response will
+have a status of `404 Not Found` and a body that is a string indicating the
+error.
 
 ### PATCH api/prefs
 Updates the preferences of a user.

@@ -195,19 +195,66 @@ func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vals, err := parseStringToInt(queryValues.Get("user_id"), queryValues.Get("conversation_id"))
+	vals, err := parseStringToInt(queryValues.Get("user_id"))
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resBody := models.PrefsFilter{
-		UserID:         vals[0],
-		ConversationID: vals[1],
+	if err = env.DB.DeletePrefs(vals[0]); err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to delete preferences for user: %s",
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == models.ErrPrefsDNE {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
+		return
 	}
 
-	json.NewEncoder(w).Encode(resBody)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// DeletePrefsConvHandler deletes a user's preferences for a conversation
+func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	queryValues, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		errMsg := "failed to parse query: " + err.Error()
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	vals, err := parseStringToInt(queryValues.Get("user_id"), vars["conversation"])
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err = env.DB.DeletePrefsConv(vals[0], vals[1]); err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to delete preferences for user: %s",
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == models.ErrPrefsDNE {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PatchPrefsHandler updates a user's preferences

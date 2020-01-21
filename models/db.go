@@ -10,6 +10,8 @@ type Datastore interface {
 	GetPrefs(int) (*GlobalPrefs, error)
 	GetPrefsConv(int, int) (*ConversationPrefs, error)
 	CreatePrefs(Preferences) (string, error)
+	DeletePrefs(int) error
+	DeletePrefsConv(int, int) error
 }
 
 type DB struct {
