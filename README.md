@@ -58,6 +58,35 @@ resource. An example response body is shown below.
 A `409 Conflict` response will be returned if preferences already exist for the
 user.
 
+### POST api/prefs/conversations
+Creates new conversation preferences for a user.
+
+#### Request body format
+```
+{
+    "conversation_id": integer (default: 0, required),
+    "text_entered": boolean (default: true, optional),
+    "text_modified": boolean (default: true, optional),
+    "tag": boolean (default: true, optional),
+    "role": boolean (default: true, optional),
+}
+```
+
+By default (for example, if the request body is `{"conversation_id":2}`), all
+boolean fields are `true`.
+
+#### Response body format
+The body of a `200 OK` response will contain a representation of the created
+resource. An example response body is shown below.
+```
+{
+    "conversation_id": 13,
+    "text_entered": true
+}
+```
+A `409 Conflict` response will be returned if preferences already exist for the
+user.
+
 ### GET api/prefs
 Retrieves global user preferences.
 

@@ -20,6 +20,10 @@ func (mdb *MockDB) CreatePrefs(prefs Preferences) (string, error) {
 	return mdb.ID, mdb.CreateErr
 }
 
+func (mdb *MockDB) CreatePrefsConv(convPrefs ConversationPrefs) error {
+	return mdb.CreateErr
+}
+
 func (mdb *MockDB) DeletePrefs(userID int) error {
 	return mdb.DeleteErr
 }

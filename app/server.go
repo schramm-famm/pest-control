@@ -29,6 +29,10 @@ func main() {
 		logging(env.PostPrefsHandler),
 	).Methods("POST")
 	httpMux.HandleFunc(
+		"/api/prefs/conversations",
+		logging(env.PostPrefsConvHandler),
+	).Methods("POST")
+	httpMux.HandleFunc(
 		"/api/prefs",
 		logging(env.GetPrefsHandler),
 	).Methods("GET")

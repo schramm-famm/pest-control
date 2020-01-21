@@ -31,6 +31,7 @@ type GlobalPrefs struct {
 }
 
 type ConversationPrefs struct {
+	UserID         int  `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	ConversationID int  `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
 	TextEntered    bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
 	TextModified   bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
@@ -148,6 +149,47 @@ func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
 		return "", err
 	}
 	return insertResult.InsertedID.(primitive.ObjectID).String(), nil
+}
+
+func (db *DB) CreatePrefsConv(convPrefs ConversationPrefs) error {
+	if _, err := db.GetPrefsConv(convPrefs.UserID, convPrefs.ConversationID); err != nil && err != mongo.ErrNoDocuments {
+		log.Printf(
+			"failed to get preferences from MongoDB collection: %s",
+			err.Error(),
+		)
+		return err
+	} else if err == nil {
+		log.Printf(
+			"conversation (%d) preferences for user (%d) already exists",
+			convPrefs.ConversationID,
+			convPrefs.UserID,
+		)
+		return ErrPrefsExists
+	}
+
+	filter, err := bson.Marshal(PrefsFilter{UserID: convPrefs.UserID})
+	if err != nil {
+		log.Printf("failed to create query filter: %s", err.Error())
+		return err
+	}
+	convPrefs.UserID = 0
+	update := bson.D{{"$push", bson.D{{Key: "conversation", Value: convPrefs}}}}
+	collection := db.Database("pest-control").Collection("prefs")
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Printf(
+			"failed to insert conversation preferences (%+v) into MongoDB collection: %s",
+			convPrefs,
+			err.Error(),
+		)
+		return err
+	}
+
+	if updateResult.ModifiedCount == 0 {
+		return ErrPrefsDNE
+	}
+
+	return nil
 }
 
 func (db *DB) DeletePrefs(userID int) error {

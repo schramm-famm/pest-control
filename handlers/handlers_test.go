@@ -89,6 +89,75 @@ func TestPostPrefsHandler(t *testing.T) {
 	}
 }
 
+func TestPostPrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		ReqBody    map[string]interface{}
+		ResBody    models.ConversationPrefs
+		Error      error
+	}{
+		{
+			Name:       "Successful default conversation preference creation",
+			StatusCode: http.StatusOK,
+			ReqBody:    map[string]interface{}{},
+			ResBody:    *models.NewConversationPrefs(),
+		},
+		{
+			Name:       "Successful custom conversation preference creation",
+			StatusCode: http.StatusOK,
+			ReqBody: map[string]interface{}{
+				"tag": false,
+			},
+			ResBody: models.ConversationPrefs{
+				Role:         true,
+				TextEntered:  true,
+				TextModified: true,
+			},
+		},
+		{
+			Name:       "Unsuccessful conversation preference creation with bad request",
+			StatusCode: http.StatusBadRequest,
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
+			},
+		},
+		{
+			Name:       "Unsuccessful conversation preference creation with existing conversation",
+			StatusCode: http.StatusConflict,
+			ReqBody: map[string]interface{}{
+				"tag": false,
+			},
+			Error: models.ErrPrefsExists,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			rBody, _ := json.Marshal(test.ReqBody)
+			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
+			w := httptest.NewRecorder()
+
+			mDB := &models.MockDB{CreateErr: test.Error}
+
+			env := &Env{DB: mDB}
+			env.PostPrefsConvHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := models.ConversationPrefs{}
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			}
+		})
+	}
+}
+
 func TestGetPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string

@@ -109,6 +109,47 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reqBody)
 }
 
+// PostPrefsConvHandler creates new conversation preferences for a user
+func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	reqBody := models.NewConversationPrefs()
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errMsg := "failed to read request body: " + err.Error()
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	if err = json.Unmarshal(bodyBytes, reqBody); err != nil {
+		errMsg := "failed to parse request body: " + err.Error()
+		log.Println(errMsg)
+		http.Error(w, errMsg, http.StatusBadRequest)
+		return
+	}
+
+	if err = env.DB.CreatePrefsConv(*reqBody); err != nil {
+		errMsg := fmt.Sprintf(
+			"failed to create conversation prefs (%+v): %s",
+			*reqBody,
+			err.Error(),
+		)
+		log.Println(errMsg)
+		responseCode := http.StatusInternalServerError
+		if err == models.ErrPrefsExists {
+			responseCode = http.StatusConflict
+		}
+		http.Error(w, errMsg, responseCode)
+		return
+	}
+
+	reqBody.UserID = 0
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(reqBody)
+}
+
 // GetPrefsHandler gets a user's global preferences
 func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)

@@ -10,6 +10,7 @@ type Datastore interface {
 	GetPrefs(int) (*GlobalPrefs, error)
 	GetPrefsConv(int, int) (*ConversationPrefs, error)
 	CreatePrefs(Preferences) (string, error)
+	CreatePrefsConv(ConversationPrefs) error
 	DeletePrefs(int) error
 	DeletePrefsConv(int, int) error
 }
