@@ -104,6 +104,7 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reqBody.ID = prefsID
+	reqBody.UserID = 0
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reqBody)

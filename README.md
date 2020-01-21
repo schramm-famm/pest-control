@@ -42,7 +42,6 @@ resource. An example response body is shown below.
 ```
 {
     "_id": string,
-    "user_id": string,
     "global": {
         "text_entered": true,
         "text_modified": true
