@@ -23,14 +23,14 @@ type Env struct {
 func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Preferences) error {
 	bodyBytes, err := ioutil.ReadAll(body)
 	if err != nil {
-		errMsg := "Failed to read request body: " + err.Error()
+		errMsg := "failed to read request body: " + err.Error()
 		log.Println(errMsg)
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return err
 	}
 
 	if err := json.Unmarshal(bodyBytes, bodyObj); err != nil {
-		errMsg := "Failed to parse request body: " + err.Error()
+		errMsg := "failed to parse request body: " + err.Error()
 		log.Println(errMsg)
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return err
@@ -46,7 +46,7 @@ func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Pre
 		// This needs to be done since there is no way to initialize the
 		// conversations array with all the fields set to true.
 		if err := json.Unmarshal(bodyBytes, bodyObj); err != nil {
-			errMsg := "Failed to parse request body: " + err.Error()
+			errMsg := "failed to parse request body: " + err.Error()
 			log.Println(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
 			return err
@@ -113,7 +113,7 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		errMsg := "Failed to parse query: " + err.Error()
+		errMsg := "failed to parse query: " + err.Error()
 		log.Println(errMsg)
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return
@@ -129,8 +129,7 @@ func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	prefs, err := env.DB.GetPrefs(vals[0])
 	if err != nil {
 		errMsg := fmt.Sprintf(
-			"unable to get preferences for query (%s): %s",
-			r.URL.RawQuery,
+			"unable to get preferences for user: %s",
 			err.Error(),
 		)
 		responseCode := http.StatusInternalServerError
@@ -153,7 +152,7 @@ func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	queryValues, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		errMsg := "Failed to parse query: " + err.Error()
+		errMsg := "failed to parse query: " + err.Error()
 		log.Println(errMsg)
 		http.Error(w, errMsg, http.StatusBadRequest)
 		return
@@ -169,8 +168,7 @@ func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 	prefs, err := env.DB.GetPrefsConv(vals[0], vals[1])
 	if err != nil {
 		errMsg := fmt.Sprintf(
-			"unable to get preferences for query (%s): %s",
-			r.URL.RawQuery,
+			"unable to get conversation preferences for user: %s",
 			err.Error(),
 		)
 		responseCode := http.StatusInternalServerError
