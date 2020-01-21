@@ -20,7 +20,7 @@ type Env struct {
 	DB models.Datastore
 }
 
-func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Preferences) error {
+func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj interface{}) error {
 	bodyBytes, err := ioutil.ReadAll(body)
 	if err != nil {
 		errMsg := "failed to read request body: " + err.Error()
@@ -36,16 +36,16 @@ func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj *models.Pre
 		return err
 	}
 
-	if len(bodyObj.Conversation) > 0 {
+	if prefs, ok := bodyObj.(*models.Preferences); ok && len(prefs.Conversation) > 0 {
 		// Set the conversation preferences to the default
-		for i := 0; i < len(bodyObj.Conversation); i++ {
-			bodyObj.Conversation[i] = models.NewConversationPrefs()
+		for i := 0; i < len(prefs.Conversation); i++ {
+			prefs.Conversation[i] = models.NewConversationPrefs()
 		}
 
 		// Overwrite the default preferences with the specified preferences.
 		// This needs to be done since there is no way to initialize the
 		// conversations array with all the fields set to true.
-		if err := json.Unmarshal(bodyBytes, bodyObj); err != nil {
+		if err := json.Unmarshal(bodyBytes, prefs); err != nil {
 			errMsg := "failed to parse request body: " + err.Error()
 			log.Println(errMsg)
 			http.Error(w, errMsg, http.StatusBadRequest)
@@ -87,7 +87,7 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prefsID, err := env.DB.CreatePrefs(*reqBody)
+	err := env.DB.CreatePrefs(reqBody)
 	if err != nil {
 		errMsg := fmt.Sprintf(
 			"failed to create prefs (%+v): %s",
@@ -103,7 +103,6 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	reqBody.ID = prefsID
 	reqBody.UserID = 0
 
 	w.Header().Set("Content-Type", "application/json")
@@ -115,22 +114,11 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	reqBody := models.NewConversationPrefs()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errMsg := "failed to read request body: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
+	if err := parseReqBody(w, r.Body, reqBody); err != nil {
 		return
 	}
 
-	if err = json.Unmarshal(bodyBytes, reqBody); err != nil {
-		errMsg := "failed to parse request body: " + err.Error()
-		log.Println(errMsg)
-		http.Error(w, errMsg, http.StatusBadRequest)
-		return
-	}
-
-	if err = env.DB.CreatePrefsConv(*reqBody); err != nil {
+	if err := env.DB.CreatePrefsConv(reqBody); err != nil {
 		errMsg := fmt.Sprintf(
 			"failed to create conversation prefs (%+v): %s",
 			*reqBody,
@@ -144,8 +132,6 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, errMsg, responseCode)
 		return
 	}
-
-	reqBody.UserID = 0
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(reqBody)
@@ -303,8 +289,23 @@ func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	reqBody := models.NewPreferences()
+	reqBody := models.NewGlobalPrefs()
 	if err := parseReqBody(w, r.Body, reqBody); err != nil {
+		return
+	}
+
+	if err := env.DB.PatchPrefs(reqBody); err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to update preferences for user: %s",
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == models.ErrPrefsDNE {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
 		return
 	}
 

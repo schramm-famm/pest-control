@@ -23,6 +23,7 @@ type PrefsFilter struct {
 }
 
 type GlobalPrefs struct {
+	UserID       int  `json:"user_id,omitempty" bson:"user_id,omitempty"`
 	Invitation   bool `json:"invitation,omitempty" bson:"invitation,omitempty"`
 	TextEntered  bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
 	TextModified bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
@@ -126,16 +127,16 @@ func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, erro
 	return prefs.Conversation[0], nil
 }
 
-func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
+func (db *DB) CreatePrefs(prefs *Preferences) error {
 	if _, err := db.GetPrefs(prefs.UserID); err != nil && err != mongo.ErrNoDocuments {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
 		)
-		return "", err
+		return err
 	} else if err == nil {
 		log.Printf("preferences for user (%d) already exists", prefs.UserID)
-		return "", ErrPrefsExists
+		return ErrPrefsExists
 	}
 
 	collection := db.Database("pest-control").Collection("prefs")
@@ -146,12 +147,15 @@ func (db *DB) CreatePrefs(prefs Preferences) (string, error) {
 			prefs,
 			err.Error(),
 		)
-		return "", err
+		return err
 	}
-	return insertResult.InsertedID.(primitive.ObjectID).String(), nil
+
+	prefs.ID = insertResult.InsertedID.(primitive.ObjectID).String()
+
+	return nil
 }
 
-func (db *DB) CreatePrefsConv(convPrefs ConversationPrefs) error {
+func (db *DB) CreatePrefsConv(convPrefs *ConversationPrefs) error {
 	if _, err := db.GetPrefsConv(convPrefs.UserID, convPrefs.ConversationID); err != nil && err != mongo.ErrNoDocuments {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
@@ -239,6 +243,42 @@ func (db *DB) DeletePrefsConv(userID, conversationID int) error {
 	if err != nil {
 		log.Printf(
 			"failed to delete preferences (%+v) from MongoDB collection: %s",
+			filter,
+			err.Error(),
+		)
+		return err
+	}
+
+	// No preferences were deleted which means that the user did not have any
+	// preferences to begin with
+	if updateResult.ModifiedCount == 0 {
+		return ErrPrefsDNE
+	}
+	return nil
+}
+
+func (db *DB) PatchPrefs(prefs *GlobalPrefs) error {
+	filter, err := bson.Marshal(PrefsFilter{
+		UserID: prefs.UserID,
+	})
+	if err != nil {
+		log.Printf("failed to create query filter: %s", err.Error())
+		return err
+	}
+
+	prefs.UserID = 0
+	update := bson.D{{
+		"$set",
+		bson.D{{
+			Key:   "global",
+			Value: prefs,
+		}},
+	}}
+	collection := db.Database("pest-control").Collection("prefs")
+	updateResult, err := collection.UpdateOne(context.TODO(), filter, update)
+	if err != nil {
+		log.Printf(
+			"failed to update preferences (%+v) in MongoDB collection: %s",
 			filter,
 			err.Error(),
 		)

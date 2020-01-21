@@ -68,7 +68,7 @@ func TestPostPrefsHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 
 			mDB := &models.MockDB{
-				ID: test.ResBody.ID,
+				Prefs: &test.ResBody,
 			}
 
 			env := &Env{DB: mDB}
@@ -391,46 +391,43 @@ func TestPatchPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		ReqBody    interface{}
-		ResBody    models.Preferences
+		ReqBody    map[string]interface{}
+		ResBody    models.GlobalPrefs
+		Error      error
 	}{
 		{
 			Name:       "Successful default preference update",
 			StatusCode: http.StatusOK,
 			ReqBody:    map[string]interface{}{},
-			ResBody:    *models.NewPreferences(),
+			ResBody:    *models.NewGlobalPrefs(),
 		},
 		{
 			Name:       "Successful custom preference update",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"global": map[string]bool{
-					"invitation":   false,
-					"text_entered": false,
-				},
-				"conversation": []map[string]bool{{
-					"tag": false,
-				}},
+				"tag": false,
 			},
-			ResBody: models.Preferences{
-				Global: &models.GlobalPrefs{
-					Role:         true,
-					Tag:          true,
-					TextModified: true,
-				},
-				Conversation: []*models.ConversationPrefs{{
-					Role:         true,
-					TextEntered:  true,
-					TextModified: true,
-				}},
+			ResBody: models.GlobalPrefs{
+				Role:         true,
+				Invitation:   true,
+				TextEntered:  true,
+				TextModified: true,
 			},
 		},
 		{
 			Name:       "Unsuccessful preference update with bad request",
 			StatusCode: http.StatusBadRequest,
-			ReqBody: map[string]string{
-				"global": "true",
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
 			},
+		},
+		{
+			Name:       "Unsuccessful preference update with non-existent resource",
+			StatusCode: http.StatusNotFound,
+			ReqBody: map[string]interface{}{
+				"tag": false,
+			},
+			Error: models.ErrPrefsDNE,
 		},
 	}
 
@@ -440,7 +437,9 @@ func TestPatchPrefsHandler(t *testing.T) {
 			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			env := &Env{DB: &models.MockDB{}}
+			mDB := &models.MockDB{PatchErr: test.Error}
+
+			env := &Env{DB: mDB}
 			env.PatchPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
@@ -448,11 +447,18 @@ func TestPatchPrefsHandler(t *testing.T) {
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := models.Preferences{}
+				resBody := models.GlobalPrefs{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+					t.Errorf("Response has incorrect body, expected %+v, got %+v", test.ResBody, resBody)
 				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}

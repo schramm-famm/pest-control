@@ -135,30 +135,31 @@ have a status of `404 Not Found` and a body that is a string indicating the
 error.
 
 ### PATCH api/prefs
-Updates the preferences of a user.
+Updates the global preferences of a user.
 
 #### Request body format
 ```
 {
-    "global": {
-        "invitation": boolean (default: true),
-        "text_entered": boolean (default: true),
-        "text_modified": boolean (default: true),
-        "tag": boolean (default: true),
-        "role": boolean (default: true),
-    },
-    "conversation": [
-        {
-            "conversation_id": integer (default: 0),
-            "text_entered": boolean (default: true),
-            "text_modified": boolean (default: true),
-            "tag": boolean (default: true),
-            "role": boolean (default: true),
-        }
-    ]
+    "invitation": boolean (default: true),
+    "text_entered": boolean (default: true),
+    "text_modified": boolean (default: true),
+    "tag": boolean (default: true),
+    "role": boolean (default: true),
 }
 ```
 
 All fields are optional. By default (i.e. if the request body is `{}`), all
-`global` fields are `true` and there are no conversation notification
-preferences.
+fields are `true`.
+
+#### Response body format
+The body of a `200 OK` response will contain a representation of the updated
+resource. An example response body is shown below.
+```
+{
+    "invitation": true,
+    "text_entered": true,
+    "text_modified": true
+}
+```
+A `404 Not Found` response will be returned, if the user's preferences do not
+exist, with a body that is a string indicating the error.
