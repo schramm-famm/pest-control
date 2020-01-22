@@ -271,7 +271,7 @@ func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	reqBody := models.NewGlobalPrefs()
+	reqBody := &models.GlobalPrefsPatch{}
 	if err := parseReqBody(w, r.Body, reqBody); err != nil {
 		return
 	}
@@ -289,7 +289,7 @@ func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 			err.Error(),
 		)
 		responseCode := http.StatusInternalServerError
-		if err == models.ErrPrefsDNE {
+		if err == mongo.ErrNoDocuments {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}

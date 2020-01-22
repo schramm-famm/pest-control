@@ -33,6 +33,6 @@ func (mdb *MockDB) DeletePrefsConv(userID, conversationID int) error {
 	return mdb.DeleteErr
 }
 
-func (mdb *MockDB) PatchPrefs(userID int, prefs *GlobalPrefs) error {
+func (mdb *MockDB) PatchPrefs(userID int, prefs *GlobalPrefsPatch) error {
 	return mdb.PatchErr
 }

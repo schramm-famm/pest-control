@@ -140,25 +140,26 @@ Updates the global preferences of a user.
 #### Request body format
 ```
 {
-    "invitation": boolean (default: true),
-    "text_entered": boolean (default: true),
-    "text_modified": boolean (default: true),
-    "tag": boolean (default: true),
-    "role": boolean (default: true),
+    "invitation": boolean (optional),
+    "text_entered": boolean (optional),
+    "text_modified": boolean (optional),
+    "tag": boolean (optional),
+    "role": boolean (optional),
 }
 ```
 
-All fields are optional. By default (i.e. if the request body is `{}`), all
-fields are `true`.
+All fields are optional. By default (i.e. if the request body is `{}`), nothing
+will be changed. The request body must reflect the changes that should be done
+to the resource.
 
 #### Response body format
-The body of a `200 OK` response will contain a representation of the updated
-resource. An example response body is shown below.
+The body of a `200 OK` response will contain a representation of the changes
+made to the resource. An example response body is shown below.
 ```
 {
     "invitation": true,
     "text_entered": true,
-    "text_modified": true
+    "text_modified": false
 }
 ```
 A `404 Not Found` response will be returned, if the user's preferences do not

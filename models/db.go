@@ -13,7 +13,7 @@ type Datastore interface {
 	CreatePrefsConv(int, *ConversationPrefs) error
 	DeletePrefs(int) error
 	DeletePrefsConv(int, int) error
-	PatchPrefs(int, *GlobalPrefs) error
+	PatchPrefs(int, *GlobalPrefsPatch) error
 }
 
 type DB struct {

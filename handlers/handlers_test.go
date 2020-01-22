@@ -388,19 +388,16 @@ func TestPatchPrefsHandler(t *testing.T) {
 			Name:       "Successful default preference update",
 			StatusCode: http.StatusOK,
 			ReqBody:    map[string]interface{}{},
-			ResBody:    *models.NewGlobalPrefs(),
+			ResBody:    models.GlobalPrefs{},
 		},
 		{
 			Name:       "Successful custom preference update",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"tag": false,
+				"tag": true,
 			},
 			ResBody: models.GlobalPrefs{
-				Role:         true,
-				Invitation:   true,
-				TextEntered:  true,
-				TextModified: true,
+				Tag: true,
 			},
 		},
 		{
@@ -416,7 +413,7 @@ func TestPatchPrefsHandler(t *testing.T) {
 			ReqBody: map[string]interface{}{
 				"tag": false,
 			},
-			Error: models.ErrPrefsDNE,
+			Error: mongo.ErrNoDocuments,
 		},
 	}
 
