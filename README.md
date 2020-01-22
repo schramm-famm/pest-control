@@ -164,3 +164,32 @@ made to the resource. An example response body is shown below.
 ```
 A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
+
+### PATCH api/prefs/conversations/{conversation_id}
+Updates the preferences of a user for a specific conversation.
+
+#### Request body format
+```
+{
+    "text_entered": boolean (optional),
+    "text_modified": boolean (optional),
+    "tag": boolean (optional),
+    "role": boolean (optional),
+}
+```
+
+All fields are optional. By default (i.e. if the request body is `{}`), nothing
+will be changed. The request body must reflect the changes that should be done
+to the resource.
+
+#### Response body format
+The body of a `200 OK` response will contain a representation of the changes
+made to the resource. An example response body is shown below.
+```
+{
+    "text_entered": true,
+    "text_modified": false
+}
+```
+A `404 Not Found` response will be returned, if the user's preferences do not
+exist, with a body that is a string indicating the error.

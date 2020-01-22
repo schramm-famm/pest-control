@@ -52,6 +52,10 @@ func main() {
 		"/api/prefs",
 		logging(env.PatchPrefsHandler),
 	).Methods("PATCH")
+	httpMux.HandleFunc(
+		"/api/prefs/conversations/{conversation:[0-9]+}",
+		logging(env.PatchPrefsConvHandler),
+	).Methods("PATCH")
 
 	httpSrv := &http.Server{
 		Addr:         ":80",

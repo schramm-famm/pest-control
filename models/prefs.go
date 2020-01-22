@@ -41,6 +41,13 @@ type GlobalPrefsPatch struct {
 	Role         *bool `json:"role,omitempty" bson:"global.role,omitempty"`
 }
 
+type ConversationPrefsPatch struct {
+	TextEntered  *bool `json:"text_entered,omitempty" bson:"conversation.$.text_entered,omitempty"`
+	TextModified *bool `json:"text_modified,omitempty" bson:"conversation.$.text_modified,omitempty"`
+	Tag          *bool `json:"tag,omitempty" bson:"conversation.$.tag,omitempty"`
+	Role         *bool `json:"role,omitempty" bson:"conversation.$.role,omitempty"`
+}
+
 type Preferences struct {
 	ID           string               `json:"_id,omitempty" bson:"_id,omitempty"`
 	UserID       int                  `json:"user_id,omitempty" bson:"user_id,omitempty"`
@@ -288,6 +295,71 @@ func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefsPatch) error {
 		update = append(update, bson.E{"$set", set})
 	}
 	if (GlobalPrefsPatch{}) != unset {
+		update = append(update, bson.E{"$unset", unset})
+	}
+
+	collection := db.Database("pest-control").Collection("prefs")
+	if _, err := collection.UpdateOne(context.TODO(), filter, update); err != nil {
+		log.Printf(
+			"failed to update preferences (%+v) in MongoDB collection: %s",
+			filter,
+			err.Error(),
+		)
+		return err
+	}
+
+	return nil
+}
+
+func (db *DB) PatchPrefsConv(
+	userID,
+	conversationID int,
+	prefs *ConversationPrefsPatch,
+) error {
+	if _, err := db.GetPrefsConv(userID, conversationID); err != nil {
+		log.Printf(
+			"failed to get preferences from MongoDB collection: %s",
+			err.Error(),
+		)
+		return err
+	}
+
+	filter := bson.D{
+		{"user_id", userID},
+		{"conversation.conversation_id", conversationID},
+	}
+
+	// Set `set` and `unset` values where the fields in `set` that are set to
+	// true will be added to the conversation document and the fields that are
+	// true in `unset` will be removed.
+	set := ConversationPrefsPatch{}
+	unset := ConversationPrefsPatch{}
+	if prefs.Role != nil && *prefs.Role {
+		set.Role = newTruePtr()
+	} else if prefs.Role != nil {
+		unset.Role = newTruePtr()
+	}
+	if prefs.Tag != nil && *prefs.Tag {
+		set.Tag = newTruePtr()
+	} else if prefs.Tag != nil {
+		unset.Tag = newTruePtr()
+	}
+	if prefs.TextEntered != nil && *prefs.TextEntered {
+		set.TextEntered = newTruePtr()
+	} else if prefs.TextEntered != nil {
+		unset.TextEntered = newTruePtr()
+	}
+	if prefs.TextModified != nil && *prefs.TextModified {
+		set.TextModified = newTruePtr()
+	} else if prefs.TextModified != nil {
+		unset.TextModified = newTruePtr()
+	}
+
+	update := bson.D{}
+	if (ConversationPrefsPatch{}) != set {
+		update = append(update, bson.E{"$set", set})
+	}
+	if (ConversationPrefsPatch{}) != unset {
 		update = append(update, bson.E{"$unset", unset})
 	}
 

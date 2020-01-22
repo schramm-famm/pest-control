@@ -449,3 +449,77 @@ func TestPatchPrefsHandler(t *testing.T) {
 		})
 	}
 }
+
+func TestPatchPrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		ReqBody    map[string]interface{}
+		ResBody    models.ConversationPrefs
+		Error      error
+	}{
+		{
+			Name:       "Successful default preference update",
+			StatusCode: http.StatusOK,
+			ReqBody:    map[string]interface{}{},
+			ResBody:    models.ConversationPrefs{},
+		},
+		{
+			Name:       "Successful custom preference update",
+			StatusCode: http.StatusOK,
+			ReqBody: map[string]interface{}{
+				"tag": true,
+			},
+			ResBody: models.ConversationPrefs{
+				Tag: true,
+			},
+		},
+		{
+			Name:       "Unsuccessful preference update with bad request",
+			StatusCode: http.StatusBadRequest,
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
+			},
+		},
+		{
+			Name:       "Unsuccessful preference update with non-existent resource",
+			StatusCode: http.StatusNotFound,
+			ReqBody: map[string]interface{}{
+				"tag": false,
+			},
+			Error: mongo.ErrNoDocuments,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			rBody, _ := json.Marshal(test.ReqBody)
+			r := httptest.NewRequest("PATCH", "/api/prefs/conversations/1", bytes.NewReader(rBody))
+			w := httptest.NewRecorder()
+
+			mDB := &models.MockDB{PatchErr: test.Error}
+
+			env := &Env{DB: mDB}
+			env.PatchPrefsConvHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := models.ConversationPrefs{}
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect body, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
+			}
+		})
+	}
+}

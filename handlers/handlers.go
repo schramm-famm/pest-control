@@ -300,3 +300,39 @@ func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(reqBody)
 }
+
+// PatchPrefsConvHandler updates a user's preferences for a specific conversation
+func (env *Env) PatchPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	vars := mux.Vars(r)
+
+	reqBody := &models.ConversationPrefsPatch{}
+	if err := parseReqBody(w, r.Body, reqBody); err != nil {
+		return
+	}
+
+	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
+	if err != nil {
+		log.Println(err.Error())
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := env.DB.PatchPrefsConv(vals[0], vals[1], reqBody); err != nil {
+		errMsg := fmt.Sprintf(
+			"unable to update preferences for user: %s",
+			err.Error(),
+		)
+		responseCode := http.StatusInternalServerError
+		if err == mongo.ErrNoDocuments {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		}
+		log.Println(errMsg)
+		http.Error(w, errMsg, responseCode)
+		return
+	}
+
+	json.NewEncoder(w).Encode(reqBody)
+}
