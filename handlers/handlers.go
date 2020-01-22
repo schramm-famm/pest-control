@@ -271,7 +271,7 @@ func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
-	reqBody := &models.GlobalPrefsPatch{}
+	reqBody := &models.GlobalPrefs{}
 	if err := parseReqBody(w, r.Body, reqBody); err != nil {
 		return
 	}
@@ -307,7 +307,7 @@ func (env *Env) PatchPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	reqBody := &models.ConversationPrefsPatch{}
+	reqBody := &models.ConversationPrefs{}
 	if err := parseReqBody(w, r.Body, reqBody); err != nil {
 		return
 	}

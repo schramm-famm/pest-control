@@ -30,32 +30,40 @@ func TestPostPrefsHandler(t *testing.T) {
 			Name:       "Successful custom preference creation",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"global": map[string]bool{
-					"invitation":   false,
-					"text_entered": false,
+				"global": map[string]models.Option{
+					"invitation":   models.None,
+					"text_entered": models.Email,
 				},
-				"conversation": []map[string]bool{{
-					"tag": false,
+				"conversation": []map[string]models.Option{{
+					"tag": models.Browser,
 				}},
 			},
 			ResBody: models.Preferences{
 				Global: &models.GlobalPrefs{
-					Role:         true,
-					Tag:          true,
-					TextModified: true,
+					models.None,
+					&models.GeneralPrefs{
+						Role:         models.All,
+						Tag:          models.All,
+						TextEntered:  models.Email,
+						TextModified: models.All,
+					},
 				},
 				Conversation: []*models.ConversationPrefs{{
-					Role:         true,
-					TextEntered:  true,
-					TextModified: true,
+					0,
+					&models.GeneralPrefs{
+						Role:         models.All,
+						Tag:          models.Browser,
+						TextEntered:  models.All,
+						TextModified: models.All,
+					},
 				}},
 			},
 		},
 		{
 			Name:       "Unsuccessful preference creation with bad request",
 			StatusCode: http.StatusBadRequest,
-			ReqBody: map[string]string{
-				"global": "true",
+			ReqBody: map[string]interface{}{
+				"global": map[string]string{"invitation": "something"},
 			},
 		},
 	}
@@ -79,7 +87,7 @@ func TestPostPrefsHandler(t *testing.T) {
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := models.Preferences{}
+				resBody := models.Preferences{Conversation: []*models.ConversationPrefs{}}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
 					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
@@ -107,12 +115,16 @@ func TestPostPrefsConvHandler(t *testing.T) {
 			Name:       "Successful custom conversation preference creation",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"tag": false,
+				"tag": models.None,
 			},
 			ResBody: models.ConversationPrefs{
-				Role:         true,
-				TextEntered:  true,
-				TextModified: true,
+				0,
+				&models.GeneralPrefs{
+					Role:         models.All,
+					Tag:          models.None,
+					TextEntered:  models.All,
+					TextModified: models.All,
+				},
 			},
 		},
 		{
@@ -126,7 +138,7 @@ func TestPostPrefsConvHandler(t *testing.T) {
 			Name:       "Unsuccessful conversation preference creation with existing conversation",
 			StatusCode: http.StatusConflict,
 			ReqBody: map[string]interface{}{
-				"tag": false,
+				"tag": models.None,
 			},
 			Error: models.ErrPrefsExists,
 		},
@@ -169,8 +181,11 @@ func TestGetPrefsHandler(t *testing.T) {
 			Name:       "Successful preference retrieval",
 			StatusCode: http.StatusOK,
 			ResBody: models.GlobalPrefs{
-				TextModified: true,
-				TextEntered:  true,
+				models.All,
+				&models.GeneralPrefs{
+					TextModified: models.All,
+					TextEntered:  models.All,
+				},
 			},
 		},
 		{
@@ -234,8 +249,11 @@ func TestGetPrefsConvHandler(t *testing.T) {
 			Name:       "Successful preference retrieval with user query",
 			StatusCode: http.StatusOK,
 			ResBody: models.ConversationPrefs{
-				TextModified: true,
-				TextEntered:  true,
+				0,
+				&models.GeneralPrefs{
+					TextModified: models.All,
+					TextEntered:  models.None,
+				},
 			},
 		},
 		{
@@ -394,10 +412,13 @@ func TestPatchPrefsHandler(t *testing.T) {
 			Name:       "Successful custom preference update",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"tag": true,
+				"tag": models.Email,
 			},
 			ResBody: models.GlobalPrefs{
-				Tag: true,
+				models.Option(""),
+				&models.GeneralPrefs{
+					Tag: models.Email,
+				},
 			},
 		},
 		{
@@ -411,7 +432,7 @@ func TestPatchPrefsHandler(t *testing.T) {
 			Name:       "Unsuccessful preference update with non-existent resource",
 			StatusCode: http.StatusNotFound,
 			ReqBody: map[string]interface{}{
-				"tag": false,
+				"tag": models.Browser,
 			},
 			Error: mongo.ErrNoDocuments,
 		},
@@ -468,10 +489,13 @@ func TestPatchPrefsConvHandler(t *testing.T) {
 			Name:       "Successful custom preference update",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"tag": true,
+				"tag": models.All,
 			},
 			ResBody: models.ConversationPrefs{
-				Tag: true,
+				0,
+				&models.GeneralPrefs{
+					Tag: models.All,
+				},
 			},
 		},
 		{
@@ -485,7 +509,7 @@ func TestPatchPrefsConvHandler(t *testing.T) {
 			Name:       "Unsuccessful preference update with non-existent resource",
 			StatusCode: http.StatusNotFound,
 			ReqBody: map[string]interface{}{
-				"tag": false,
+				"tag": models.Browser,
 			},
 			Error: mongo.ErrNoDocuments,
 		},

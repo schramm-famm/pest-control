@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -12,80 +13,188 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type Option string
+
+type GeneralPrefs struct {
+	TextEntered  Option `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
+	TextModified Option `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
+	Tag          Option `json:"tag,omitempty" bson:"tag,omitempty"`
+	Role         Option `json:"role,omitempty" bson:"role,omitempty"`
+}
+
+type GlobalPrefs struct {
+	Invitation    Option `json:"invitation,omitempty" bson:"invitation,omitempty"`
+	*GeneralPrefs `bson:"inline"`
+}
+
+type ConversationPrefs struct {
+	ConversationID int `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
+	*GeneralPrefs  `bson:"inline"`
+}
+
+type Preferences struct {
+	ID           string               `json:"_id,omitempty" bson:"_id,omitempty"`
+	UserID       int                  `json:"user_id,omitempty" bson:"user_id"`
+	Global       *GlobalPrefs         `json:"global,omitempty" bson:"global"`
+	Conversation []*ConversationPrefs `json:"conversation,omitempty" bson:"conversation"`
+}
+
+const (
+	None    Option = "none"
+	Email   Option = "email"
+	Browser Option = "browser"
+	All     Option = "all"
+)
+
 var (
 	ErrPrefsExists = errors.New("preferences for user already exists")
 	ErrPrefsDNE    = errors.New("preferences for user does not exist")
 )
 
-type GlobalPrefs struct {
-	Invitation   bool `json:"invitation,omitempty" bson:"invitation,omitempty"`
-	TextEntered  bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
-	TextModified bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
-	Tag          bool `json:"tag,omitempty" bson:"tag,omitempty"`
-	Role         bool `json:"role,omitempty" bson:"role,omitempty"`
-}
-
-type ConversationPrefs struct {
-	ConversationID int  `json:"conversation_id,omitempty" bson:"conversation_id,omitempty"`
-	TextEntered    bool `json:"text_entered,omitempty" bson:"text_entered,omitempty"`
-	TextModified   bool `json:"text_modified,omitempty" bson:"text_modified,omitempty"`
-	Tag            bool `json:"tag,omitempty" bson:"tag,omitempty"`
-	Role           bool `json:"role,omitempty" bson:"role,omitempty"`
-}
-
-type GlobalPrefsPatch struct {
-	Invitation   *bool `json:"invitation,omitempty" bson:"global.invitation,omitempty"`
-	TextEntered  *bool `json:"text_entered,omitempty" bson:"global.text_entered,omitempty"`
-	TextModified *bool `json:"text_modified,omitempty" bson:"global.text_modified,omitempty"`
-	Tag          *bool `json:"tag,omitempty" bson:"global.tag,omitempty"`
-	Role         *bool `json:"role,omitempty" bson:"global.role,omitempty"`
-}
-
-type ConversationPrefsPatch struct {
-	TextEntered  *bool `json:"text_entered,omitempty" bson:"conversation.$.text_entered,omitempty"`
-	TextModified *bool `json:"text_modified,omitempty" bson:"conversation.$.text_modified,omitempty"`
-	Tag          *bool `json:"tag,omitempty" bson:"conversation.$.tag,omitempty"`
-	Role         *bool `json:"role,omitempty" bson:"conversation.$.role,omitempty"`
-}
-
-type Preferences struct {
-	ID           string               `json:"_id,omitempty" bson:"_id,omitempty"`
-	UserID       int                  `json:"user_id,omitempty" bson:"user_id,omitempty"`
-	Global       *GlobalPrefs         `json:"global,omitempty" bson:"global,omitempty"`
-	Conversation []*ConversationPrefs `json:"conversation,omitempty" bson:"conversation,omitempty"`
-}
-
 func NewGlobalPrefs() *GlobalPrefs {
 	return &GlobalPrefs{
-		Invitation:   true,
-		TextEntered:  true,
-		TextModified: true,
-		Tag:          true,
-		Role:         true,
+		All,
+		&GeneralPrefs{
+			TextEntered:  All,
+			TextModified: All,
+			Tag:          All,
+			Role:         All,
+		},
 	}
 }
 
 func NewConversationPrefs() *ConversationPrefs {
 	return &ConversationPrefs{
-		TextEntered:  true,
-		TextModified: true,
-		Tag:          true,
-		Role:         true,
+		0,
+		&GeneralPrefs{
+			TextEntered:  All,
+			TextModified: All,
+			Tag:          All,
+			Role:         All,
+		},
 	}
 }
 
 func NewPreferences() *Preferences {
 	return &Preferences{
-		Global: NewGlobalPrefs(),
+		Global:       NewGlobalPrefs(),
+		Conversation: []*ConversationPrefs{},
 	}
+}
+
+func (g *GeneralPrefs) String() string {
+	return fmt.Sprintf("%+v", *g)
 }
 
 func (g *GlobalPrefs) String() string {
 	return fmt.Sprintf("%+v", *g)
 }
 
+func (g *GlobalPrefs) UnmarshalJSON(data []byte) error {
+	type Aux GlobalPrefs
+	var s *Aux = (*Aux)(g)
+	if err := json.Unmarshal(data, s); err != nil {
+		return err
+	}
+
+	if s == nil || s.GeneralPrefs == nil {
+		return nil
+	}
+
+	invalidVal := []string{}
+
+	switch s.Invitation {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "invitation")
+	}
+
+	switch s.Role {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "role")
+	}
+
+	switch s.Tag {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "tag")
+	}
+
+	switch s.TextEntered {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "text_entered")
+	}
+
+	switch s.TextModified {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "text_modified")
+	}
+
+	if len(invalidVal) > 0 {
+		return errors.New(fmt.Sprintf("invalid value for %v", invalidVal))
+	}
+
+	return nil
+}
+
 func (c *ConversationPrefs) String() string {
 	return fmt.Sprintf("%+v", *c)
+}
+
+func (c *ConversationPrefs) UnmarshalJSON(data []byte) error {
+	type Aux ConversationPrefs
+	var s *Aux = (*Aux)(c)
+	if err := json.Unmarshal(data, s); err != nil {
+		return err
+	}
+
+	if s == nil || s.GeneralPrefs == nil {
+		return nil
+	}
+
+	invalidVal := []string{}
+
+	switch s.Role {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "role")
+	}
+
+	switch s.Tag {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "tag")
+	}
+
+	switch s.TextEntered {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "text_entered")
+	}
+
+	switch s.TextModified {
+	case All, Email, Browser, None, "":
+		break
+	default:
+		invalidVal = append(invalidVal, "text_modified")
+	}
+
+	if len(invalidVal) > 0 {
+		return errors.New(fmt.Sprintf("invalid value for %v", invalidVal))
+	}
+
+	return nil
 }
 
 func (db *DB) GetPrefs(userID int) (*GlobalPrefs, error) {
@@ -243,12 +352,36 @@ func (db *DB) DeletePrefsConv(userID, conversationID int) error {
 	return nil
 }
 
-func newTruePtr() *bool {
-	b := true
-	return &b
+func CreateUpdateBSON(prefs interface{}, prefix string) ([]byte, error) {
+	bytes, err := bson.Marshal(prefs)
+	if err != nil {
+		log.Printf("failed to marshal prefs to bson: %s", err.Error())
+		return nil, err
+	}
+
+	prefsMap := map[string]string{}
+	if err = bson.Unmarshal(bytes, &prefsMap); err != nil {
+		log.Printf("failed to unmarshal bson to map: %s", err.Error())
+		return nil, err
+	}
+
+	newPrefsMap := map[string]string{}
+
+	for key, value := range prefsMap {
+		newPrefsMap[prefix+key] = value
+	}
+
+	update := bson.D{{"$set", newPrefsMap}}
+	updateBytes, err := bson.Marshal(update)
+	if err != nil {
+		log.Printf("failed to marshal update to bson: %s", err.Error())
+		return nil, err
+	}
+
+	return updateBytes, nil
 }
 
-func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefsPatch) error {
+func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefs) error {
 	if _, err := db.GetPrefs(userID); err != nil {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
@@ -258,44 +391,10 @@ func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefsPatch) error {
 	}
 
 	filter := bson.D{{"user_id", userID}}
-
-	// Set `set` and `unset` values where the fields in `set` that are set to
-	// true will be added to the global document and the fields that are true
-	// in `unset` will be removed.
-	set := GlobalPrefsPatch{}
-	unset := GlobalPrefsPatch{}
-	if prefs.Invitation != nil && *prefs.Invitation {
-		set.Invitation = newTruePtr()
-	} else if prefs.Invitation != nil {
-		unset.Invitation = newTruePtr()
-	}
-	if prefs.Role != nil && *prefs.Role {
-		set.Role = newTruePtr()
-	} else if prefs.Role != nil {
-		unset.Role = newTruePtr()
-	}
-	if prefs.Tag != nil && *prefs.Tag {
-		set.Tag = newTruePtr()
-	} else if prefs.Tag != nil {
-		unset.Tag = newTruePtr()
-	}
-	if prefs.TextEntered != nil && *prefs.TextEntered {
-		set.TextEntered = newTruePtr()
-	} else if prefs.TextEntered != nil {
-		unset.TextEntered = newTruePtr()
-	}
-	if prefs.TextModified != nil && *prefs.TextModified {
-		set.TextModified = newTruePtr()
-	} else if prefs.TextModified != nil {
-		unset.TextModified = newTruePtr()
-	}
-
-	update := bson.D{}
-	if (GlobalPrefsPatch{}) != set {
-		update = append(update, bson.E{"$set", set})
-	}
-	if (GlobalPrefsPatch{}) != unset {
-		update = append(update, bson.E{"$unset", unset})
+	update, err := CreateUpdateBSON(prefs, "global.")
+	if err != nil {
+		log.Printf("failed to create bson for update object: %s", err.Error())
+		return err
 	}
 
 	collection := db.Database("pest-control").Collection("prefs")
@@ -314,7 +413,7 @@ func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefsPatch) error {
 func (db *DB) PatchPrefsConv(
 	userID,
 	conversationID int,
-	prefs *ConversationPrefsPatch,
+	prefs *ConversationPrefs,
 ) error {
 	if _, err := db.GetPrefsConv(userID, conversationID); err != nil {
 		log.Printf(
@@ -328,39 +427,10 @@ func (db *DB) PatchPrefsConv(
 		{"user_id", userID},
 		{"conversation.conversation_id", conversationID},
 	}
-
-	// Set `set` and `unset` values where the fields in `set` that are set to
-	// true will be added to the conversation document and the fields that are
-	// true in `unset` will be removed.
-	set := ConversationPrefsPatch{}
-	unset := ConversationPrefsPatch{}
-	if prefs.Role != nil && *prefs.Role {
-		set.Role = newTruePtr()
-	} else if prefs.Role != nil {
-		unset.Role = newTruePtr()
-	}
-	if prefs.Tag != nil && *prefs.Tag {
-		set.Tag = newTruePtr()
-	} else if prefs.Tag != nil {
-		unset.Tag = newTruePtr()
-	}
-	if prefs.TextEntered != nil && *prefs.TextEntered {
-		set.TextEntered = newTruePtr()
-	} else if prefs.TextEntered != nil {
-		unset.TextEntered = newTruePtr()
-	}
-	if prefs.TextModified != nil && *prefs.TextModified {
-		set.TextModified = newTruePtr()
-	} else if prefs.TextModified != nil {
-		unset.TextModified = newTruePtr()
-	}
-
-	update := bson.D{}
-	if (ConversationPrefsPatch{}) != set {
-		update = append(update, bson.E{"$set", set})
-	}
-	if (ConversationPrefsPatch{}) != unset {
-		update = append(update, bson.E{"$unset", unset})
+	update, err := CreateUpdateBSON(prefs, "conversation.$.")
+	if err != nil {
+		log.Printf("failed to create bson for update object: %s", err.Error())
+		return err
 	}
 
 	collection := db.Database("pest-control").Collection("prefs")
