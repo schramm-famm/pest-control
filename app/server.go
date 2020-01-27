@@ -1,9 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"github.com/gorilla/mux"
 	"log"
 	"net/http"
+	"os"
 	"pest-control/handlers"
 	"pest-control/models"
 	"time"
@@ -17,7 +19,12 @@ func logging(f http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
-	db, err := models.NewDB("mongodb://localhost:27017")
+	connectionString := fmt.Sprintf(
+		"mongodb://%s:%s",
+		os.Getenv("PESTCONTROL_DB_IP"),
+		os.Getenv("PESTCONTROL_DB_PORT"),
+	)
+	db, err := models.NewDB(connectionString)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -25,35 +32,35 @@ func main() {
 
 	httpMux := mux.NewRouter()
 	httpMux.HandleFunc(
-		"/api/prefs",
+		"/pest-control/v1/prefs",
 		logging(env.PostPrefsHandler),
 	).Methods("POST")
 	httpMux.HandleFunc(
-		"/api/prefs/conversations",
+		"/pest-control/v1/prefs/conversations",
 		logging(env.PostPrefsConvHandler),
 	).Methods("POST")
 	httpMux.HandleFunc(
-		"/api/prefs",
+		"/pest-control/v1/prefs",
 		logging(env.GetPrefsHandler),
 	).Methods("GET")
 	httpMux.HandleFunc(
-		"/api/prefs/conversations/{conversation:[0-9]+}",
+		"/pest-control/v1/prefs/conversations/{conversation:[0-9]+}",
 		logging(env.GetPrefsConvHandler),
 	).Methods("GET")
 	httpMux.HandleFunc(
-		"/api/prefs",
+		"/pest-control/v1/prefs",
 		logging(env.DeletePrefsHandler),
 	).Methods("DELETE")
 	httpMux.HandleFunc(
-		"/api/prefs/conversations/{conversation:[0-9]+}",
+		"/pest-control/v1/prefs/conversations/{conversation:[0-9]+}",
 		logging(env.DeletePrefsConvHandler),
 	).Methods("DELETE")
 	httpMux.HandleFunc(
-		"/api/prefs",
+		"/pest-control/v1/prefs",
 		logging(env.PatchPrefsHandler),
 	).Methods("PATCH")
 	httpMux.HandleFunc(
-		"/api/prefs/conversations/{conversation:[0-9]+}",
+		"/pest-control/v1/prefs/conversations/{conversation:[0-9]+}",
 		logging(env.PatchPrefsConvHandler),
 	).Methods("PATCH")
 

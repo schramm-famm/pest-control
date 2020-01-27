@@ -9,8 +9,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 func TestPostPrefsHandler(t *testing.T) {
@@ -22,13 +20,13 @@ func TestPostPrefsHandler(t *testing.T) {
 	}{
 		{
 			Name:       "Successful default preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody:    map[string]interface{}{},
 			ResBody:    *models.NewPreferences(),
 		},
 		{
 			Name:       "Successful custom preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody: map[string]interface{}{
 				"global": map[string]models.Option{
 					"invitation":   models.None,
@@ -72,7 +70,7 @@ func TestPostPrefsHandler(t *testing.T) {
 		t.Run(test.Name, func(t *testing.T) {
 			test.ResBody.ID = "blah"
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("POST", "/pest-control/v1/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
 			mDB := &models.MockDB{
@@ -107,13 +105,13 @@ func TestPostPrefsConvHandler(t *testing.T) {
 	}{
 		{
 			Name:       "Successful default conversation preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody:    map[string]interface{}{},
 			ResBody:    *models.NewConversationPrefs(),
 		},
 		{
 			Name:       "Successful custom conversation preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody: map[string]interface{}{
 				"tag": models.None,
 			},
@@ -140,14 +138,14 @@ func TestPostPrefsConvHandler(t *testing.T) {
 			ReqBody: map[string]interface{}{
 				"tag": models.None,
 			},
-			Error: models.ErrPrefsExists,
+			Error: models.ErrPrefsConvExists,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("POST", "/pest-control/v1/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
 			mDB := &models.MockDB{CreateErr: test.Error}
@@ -191,13 +189,13 @@ func TestGetPrefsHandler(t *testing.T) {
 		{
 			Name:       "Unsuccessful preference retrieval with non-existent user",
 			StatusCode: http.StatusNotFound,
-			Error:      mongo.ErrNoDocuments,
+			Error:      models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("", "/api/prefs", nil)
+			r := httptest.NewRequest("", "/pest-control/v1/prefs", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{
@@ -259,13 +257,13 @@ func TestGetPrefsConvHandler(t *testing.T) {
 		{
 			Name:       "Unsuccessful preference retrieval with non-existent user",
 			StatusCode: http.StatusNotFound,
-			Error:      mongo.ErrNoDocuments,
+			Error:      models.ErrPrefsConvDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("", "/api/prefs/conversations/1", nil)
+			r := httptest.NewRequest("", "/pest-control/v1/prefs/conversations/1", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{
@@ -331,7 +329,7 @@ func TestDeletePrefsHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs", nil)
+			r := httptest.NewRequest("DELETE", "/pest-control/v1/prefs", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
@@ -366,17 +364,17 @@ func TestDeletePrefsConvHandler(t *testing.T) {
 		{
 			Name:       "Unsuccessful conversation preference deletion for non-existent resource",
 			StatusCode: http.StatusNotFound,
-			Error:      models.ErrPrefsDNE,
+			Error:      models.ErrPrefsConvDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs/conversations/1", nil)
+			r := httptest.NewRequest("DELETE", "/pest-control/v1/prefs/conversations/1", nil)
 			w := httptest.NewRecorder()
 
 			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
-			env.DeletePrefsHandler(w, r)
+			env.DeletePrefsConvHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
@@ -434,14 +432,14 @@ func TestPatchPrefsHandler(t *testing.T) {
 			ReqBody: map[string]interface{}{
 				"tag": models.Browser,
 			},
-			Error: mongo.ErrNoDocuments,
+			Error: models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("PATCH", "/pest-control/v1/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
 			mDB := &models.MockDB{PatchErr: test.Error}
@@ -511,14 +509,14 @@ func TestPatchPrefsConvHandler(t *testing.T) {
 			ReqBody: map[string]interface{}{
 				"tag": models.Browser,
 			},
-			Error: mongo.ErrNoDocuments,
+			Error: models.ErrPrefsConvDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("PATCH", "/api/prefs/conversations/1", bytes.NewReader(rBody))
+			r := httptest.NewRequest("PATCH", "/pest-control/v1/prefs/conversations/1", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
 			mDB := &models.MockDB{PatchErr: test.Error}

@@ -47,8 +47,10 @@ const (
 )
 
 var (
-	ErrPrefsExists = errors.New("preferences for user already exists")
-	ErrPrefsDNE    = errors.New("preferences for user does not exist")
+	ErrPrefsExists     = errors.New("user preferences already exists")
+	ErrPrefsConvExists = errors.New("user preferences for conversation already exists")
+	ErrPrefsDNE        = errors.New("user preferences does not exist")
+	ErrPrefsConvDNE    = errors.New("user preferences for conversation does not exist")
 )
 
 func NewGlobalPrefs() *GlobalPrefs {
@@ -203,6 +205,9 @@ func (db *DB) GetPrefs(userID int) (*GlobalPrefs, error) {
 	collection := db.Database("pest-control").Collection("prefs")
 	singleResult := collection.FindOne(context.TODO(), filter, opts)
 	if singleResult.Err() != nil {
+		if singleResult.Err() == mongo.ErrNoDocuments {
+			return nil, ErrPrefsDNE
+		}
 		return nil, singleResult.Err()
 	}
 
@@ -223,6 +228,9 @@ func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, erro
 	collection := db.Database("pest-control").Collection("prefs")
 	singleResult := collection.FindOne(context.TODO(), filter, opts)
 	if singleResult.Err() != nil {
+		if singleResult.Err() == mongo.ErrNoDocuments {
+			return nil, ErrPrefsDNE
+		}
 		return nil, singleResult.Err()
 	}
 
@@ -233,13 +241,13 @@ func (db *DB) GetPrefsConv(userID, conversationID int) (*ConversationPrefs, erro
 	}
 
 	if len(prefs.Conversation) == 0 {
-		return nil, mongo.ErrNoDocuments
+		return nil, ErrPrefsConvDNE
 	}
 	return prefs.Conversation[0], nil
 }
 
 func (db *DB) CreatePrefs(prefs *Preferences) error {
-	if _, err := db.GetPrefs(prefs.UserID); err != nil && err != mongo.ErrNoDocuments {
+	if _, err := db.GetPrefs(prefs.UserID); err != nil && err != ErrPrefsDNE {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
@@ -261,13 +269,13 @@ func (db *DB) CreatePrefs(prefs *Preferences) error {
 		return err
 	}
 
-	prefs.ID = insertResult.InsertedID.(primitive.ObjectID).String()
+	prefs.ID = insertResult.InsertedID.(primitive.ObjectID).Hex()
 
 	return nil
 }
 
 func (db *DB) CreatePrefsConv(userID int, convPrefs *ConversationPrefs) error {
-	if _, err := db.GetPrefsConv(userID, convPrefs.ConversationID); err != nil && err != mongo.ErrNoDocuments {
+	if _, err := db.GetPrefsConv(userID, convPrefs.ConversationID); err != nil && err != ErrPrefsConvDNE {
 		log.Printf(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
@@ -279,7 +287,7 @@ func (db *DB) CreatePrefsConv(userID int, convPrefs *ConversationPrefs) error {
 			convPrefs.ConversationID,
 			userID,
 		)
-		return ErrPrefsExists
+		return ErrPrefsConvExists
 	}
 
 	filter := bson.D{{"user_id", userID}}
@@ -347,12 +355,12 @@ func (db *DB) DeletePrefsConv(userID, conversationID int) error {
 	// No preferences were deleted which means that the user did not have any
 	// preferences to begin with
 	if updateResult.ModifiedCount == 0 {
-		return ErrPrefsDNE
+		return ErrPrefsConvDNE
 	}
 	return nil
 }
 
-func CreateUpdateBSON(prefs interface{}, prefix string) ([]byte, error) {
+func createUpdateBSON(prefs interface{}, prefix string) ([]byte, error) {
 	bytes, err := bson.Marshal(prefs)
 	if err != nil {
 		log.Printf("failed to marshal prefs to bson: %s", err.Error())
@@ -363,6 +371,11 @@ func CreateUpdateBSON(prefs interface{}, prefix string) ([]byte, error) {
 	if err = bson.Unmarshal(bytes, &prefsMap); err != nil {
 		log.Printf("failed to unmarshal bson to map: %s", err.Error())
 		return nil, err
+	}
+
+	// An empty JSON was provided
+	if len(prefsMap) == 0 {
+		return nil, nil
 	}
 
 	newPrefsMap := map[string]string{}
@@ -387,14 +400,19 @@ func (db *DB) PatchPrefs(userID int, prefs *GlobalPrefs) error {
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
 		)
+		if err == mongo.ErrNoDocuments {
+			return ErrPrefsDNE
+		}
 		return err
 	}
 
 	filter := bson.D{{"user_id", userID}}
-	update, err := CreateUpdateBSON(prefs, "global.")
+	update, err := createUpdateBSON(prefs, "global.")
 	if err != nil {
 		log.Printf("failed to create bson for update object: %s", err.Error())
 		return err
+	} else if update == nil {
+		return nil
 	}
 
 	collection := db.Database("pest-control").Collection("prefs")
@@ -420,6 +438,9 @@ func (db *DB) PatchPrefsConv(
 			"failed to get preferences from MongoDB collection: %s",
 			err.Error(),
 		)
+		if err == mongo.ErrNoDocuments {
+			return ErrPrefsConvDNE
+		}
 		return err
 	}
 
@@ -427,10 +448,12 @@ func (db *DB) PatchPrefsConv(
 		{"user_id", userID},
 		{"conversation.conversation_id", conversationID},
 	}
-	update, err := CreateUpdateBSON(prefs, "conversation.$.")
+	update, err := createUpdateBSON(prefs, "conversation.$.")
 	if err != nil {
 		log.Printf("failed to create bson for update object: %s", err.Error())
 		return err
+	} else if update == nil {
+		return nil
 	}
 
 	collection := db.Database("pest-control").Collection("prefs")

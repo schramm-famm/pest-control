@@ -12,12 +12,16 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Env struct {
 	DB models.Datastore
 }
+
+const (
+	ApplicationJSON        = "application/json"
+	InternalServerErrorStr = "Internal Server Error"
+)
 
 func parseReqBody(w http.ResponseWriter, body io.ReadCloser, bodyObj interface{}) error {
 	bodyBytes, err := ioutil.ReadAll(body)
@@ -88,22 +92,24 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	reqBody.UserID = vals[0]
 
 	if err = env.DB.CreatePrefs(reqBody); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"failed to create prefs (%+v): %s",
 			*reqBody,
 			err.Error(),
 		)
-		log.Println(errMsg)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
 		if err == models.ErrPrefsExists {
+			errMsg = err.Error()
 			responseCode = http.StatusConflict
 		}
 		http.Error(w, errMsg, responseCode)
@@ -112,7 +118,9 @@ func (env *Env) PostPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	reqBody.UserID = 0
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", ApplicationJSON)
+	w.Header().Set("Location", r.URL.Path)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(reqBody)
 }
 
@@ -127,27 +135,37 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	if err := env.DB.CreatePrefsConv(vals[0], reqBody); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"failed to create conversation prefs (%+v): %s",
 			*reqBody,
 			err.Error(),
 		)
-		log.Println(errMsg)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == models.ErrPrefsExists {
+		if err == models.ErrPrefsDNE {
+			errMsg = err.Error()
+			responseCode = http.StatusNotFound
+		} else if err == models.ErrPrefsConvExists {
+			errMsg = err.Error()
 			responseCode = http.StatusConflict
 		}
 		http.Error(w, errMsg, responseCode)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", ApplicationJSON)
+	w.Header().Set(
+		"Location",
+		fmt.Sprintf("%s/%d", r.URL.Path, reqBody.ConversationID),
+	)
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(reqBody)
 }
 
@@ -155,28 +173,29 @@ func (env *Env) PostPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) GetPrefsHandler(w http.ResponseWriter, r *http.Request) {
 	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	prefs, err := env.DB.GetPrefs(vals[0])
 	if err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to get preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == mongo.ErrNoDocuments {
+		if err == models.ErrPrefsDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", ApplicationJSON)
 	json.NewEncoder(w).Encode(prefs)
 }
 
@@ -186,28 +205,29 @@ func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID or conversation ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	prefs, err := env.DB.GetPrefsConv(vals[0], vals[1])
 	if err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to get conversation preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == mongo.ErrNoDocuments {
+		if err == models.ErrPrefsConvDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", ApplicationJSON)
 	json.NewEncoder(w).Encode(prefs)
 }
 
@@ -215,22 +235,23 @@ func (env *Env) GetPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 func (env *Env) DeletePrefsHandler(w http.ResponseWriter, r *http.Request) {
 	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	if err = env.DB.DeletePrefs(vals[0]); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to delete preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
 		if err == models.ErrPrefsDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
@@ -244,22 +265,23 @@ func (env *Env) DeletePrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID or conversation ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	if err = env.DB.DeletePrefsConv(vals[0], vals[1]); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to delete preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == models.ErrPrefsDNE {
+		if err == models.ErrPrefsConvDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
@@ -278,26 +300,28 @@ func (env *Env) PatchPrefsHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"))
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID or conversation ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	if err := env.DB.PatchPrefs(vals[0], reqBody); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to update preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == mongo.ErrNoDocuments {
+		if err == models.ErrPrefsDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
 
+	w.Header().Set("Content-Type", ApplicationJSON)
 	json.NewEncoder(w).Encode(reqBody)
 }
 
@@ -314,25 +338,27 @@ func (env *Env) PatchPrefsConvHandler(w http.ResponseWriter, r *http.Request) {
 
 	vals, err := parseStringToInt(r.Header.Get("User-ID"), vars["conversation"])
 	if err != nil {
-		log.Println(err.Error())
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		errMsg := "Invalid user ID or conversation ID"
+		log.Println(errMsg + ": " + err.Error())
+		http.Error(w, errMsg, http.StatusBadRequest)
 		return
 	}
 
 	if err := env.DB.PatchPrefsConv(vals[0], vals[1], reqBody); err != nil {
-		errMsg := fmt.Sprintf(
+		log.Printf(
 			"unable to update preferences for user: %s",
 			err.Error(),
 		)
+		errMsg := InternalServerErrorStr
 		responseCode := http.StatusInternalServerError
-		if err == mongo.ErrNoDocuments {
+		if err == models.ErrPrefsConvDNE {
 			errMsg = err.Error()
 			responseCode = http.StatusNotFound
 		}
-		log.Println(errMsg)
 		http.Error(w, errMsg, responseCode)
 		return
 	}
 
+	w.Header().Set("Content-Type", ApplicationJSON)
 	json.NewEncoder(w).Encode(reqBody)
 }
