@@ -19,7 +19,7 @@ Option = (
 )
 ```
 
-### POST api/prefs
+### `POST api/prefs`
 Creates a new set of preferences for a user.
 
 #### Request body format
@@ -75,7 +75,7 @@ resource. An example response body is shown below.
 A `409 Conflict` response will be returned if preferences already exist for the
 user.
 
-### POST api/prefs/conversations
+### `POST api/prefs/conversations`
 Creates new conversation preferences for a user.
 
 #### Request body format
@@ -107,7 +107,7 @@ resource. An example response body is shown below.
 A `409 Conflict` response will be returned if preferences already exist for the
 user.
 
-### GET api/prefs
+### `GET api/prefs`
 Retrieves global user preferences.
 
 #### Response body format
@@ -125,7 +125,7 @@ resource. An example response body is shown below.
 A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
 
-### GET api/prefs/conversations/{conversation_id}
+### `GET api/prefs/conversations/{conversation_id}`
 Retrieves user preferences for a specific conversation.
 
 #### Response body format
@@ -143,7 +143,7 @@ resource. An example response body is shown below.
 A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
 
-### DELETE api/prefs
+### `DELETE api/prefs`
 Deletes user's preferences.
 
 #### Response body format
@@ -151,7 +151,7 @@ A successful deletion will result in a `204 No Content` response with no body.
 If the user's preferences do not exist, the response will have a status of `404
 Not Found` and a body that is a string indicating the error.
 
-### DELETE api/prefs/conversations/{conversation_id}
+### `DELETE api/prefs/conversations/{conversation_id}`
 Deletes user's preferences for a specific conversation.
 
 #### Response body format
@@ -160,7 +160,7 @@ If the user's preferences for the conversation does not exist, the response will
 have a status of `404 Not Found` and a body that is a string indicating the
 error.
 
-### PATCH api/prefs
+### `PATCH api/prefs`
 Updates the global preferences of a user.
 
 #### Request body format
@@ -191,7 +191,7 @@ made to the resource. An example response body is shown below.
 A `404 Not Found` response will be returned, if the user's preferences do not
 exist, with a body that is a string indicating the error.
 
-### PATCH api/prefs/conversations/{conversation_id}
+### `PATCH api/prefs/conversations/{conversation_id}`
 Updates the preferences of a user for a specific conversation.
 
 #### Request body format
