@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"pest-control/models"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -19,58 +20,145 @@ func TestPostPrefsHandler(t *testing.T) {
 	}{
 		{
 			Name:       "Successful default preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody:    map[string]interface{}{},
 			ResBody:    *models.NewPreferences(),
 		},
 		{
 			Name:       "Successful custom preference creation",
-			StatusCode: http.StatusOK,
+			StatusCode: http.StatusCreated,
 			ReqBody: map[string]interface{}{
-				"global": map[string]bool{
-					"invitation":   false,
-					"text_entered": false,
+				"global": map[string]models.Option{
+					"invitation":   models.None,
+					"text_entered": models.Email,
 				},
-				"conversation": []map[string]bool{{
-					"tag": false,
+				"conversation": []map[string]models.Option{{
+					"tag": models.Browser,
 				}},
 			},
 			ResBody: models.Preferences{
 				Global: &models.GlobalPrefs{
-					Role:         true,
-					Tag:          true,
-					TextModified: true,
+					models.None,
+					&models.GeneralPrefs{
+						Role:         models.All,
+						Tag:          models.All,
+						TextEntered:  models.Email,
+						TextModified: models.All,
+					},
 				},
 				Conversation: []*models.ConversationPrefs{{
-					Role:         true,
-					TextEntered:  true,
-					TextModified: true,
+					0,
+					&models.GeneralPrefs{
+						Role:         models.All,
+						Tag:          models.Browser,
+						TextEntered:  models.All,
+						TextModified: models.All,
+					},
 				}},
 			},
 		},
 		{
 			Name:       "Unsuccessful preference creation with bad request",
 			StatusCode: http.StatusBadRequest,
-			ReqBody: map[string]string{
-				"global": "true",
+			ReqBody: map[string]interface{}{
+				"global": map[string]string{"invitation": "something"},
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
+			test.ResBody.ID = "blah"
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("POST", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("POST", "/pest-control/v1/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			PostPrefsHandler(w, r)
+			mDB := &models.MockDB{
+				Prefs: &test.ResBody,
+			}
+
+			env := &Env{DB: mDB}
+			env.PostPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := models.Preferences{}
+				resBody := models.Preferences{Conversation: []*models.ConversationPrefs{}}
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			}
+		})
+	}
+}
+
+func TestPostPrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		ReqBody    map[string]interface{}
+		ResBody    models.ConversationPrefs
+		Error      error
+	}{
+		{
+			Name:       "Successful default conversation preference creation",
+			StatusCode: http.StatusCreated,
+			ReqBody:    map[string]interface{}{},
+			ResBody:    *models.NewConversationPrefs(),
+		},
+		{
+			Name:       "Successful custom conversation preference creation",
+			StatusCode: http.StatusCreated,
+			ReqBody: map[string]interface{}{
+				"tag": models.None,
+			},
+			ResBody: models.ConversationPrefs{
+				0,
+				&models.GeneralPrefs{
+					Role:         models.All,
+					Tag:          models.None,
+					TextEntered:  models.All,
+					TextModified: models.All,
+				},
+			},
+		},
+		{
+			Name:       "Unsuccessful conversation preference creation with bad request",
+			StatusCode: http.StatusBadRequest,
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
+			},
+		},
+		{
+			Name:       "Unsuccessful conversation preference creation with existing conversation",
+			StatusCode: http.StatusConflict,
+			ReqBody: map[string]interface{}{
+				"tag": models.None,
+			},
+			Error: models.ErrPrefsConvExists,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			rBody, _ := json.Marshal(test.ReqBody)
+			r := httptest.NewRequest("POST", "/pest-control/v1/prefs", bytes.NewReader(rBody))
+			w := httptest.NewRecorder()
+
+			mDB := &models.MockDB{CreateErr: test.Error}
+
+			env := &Env{DB: mDB}
+			env.PostPrefsConvHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := models.ConversationPrefs{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
 					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
@@ -84,128 +172,139 @@ func TestGetPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		Query      string
-		ResBody    map[string]string
+		ResBody    models.GlobalPrefs
+		Error      error
 	}{
 		{
-			Name:       "Successful preference retrieval with no query",
+			Name:       "Successful preference retrieval",
 			StatusCode: http.StatusOK,
-			ResBody: map[string]string{
-				"user_id":         "",
-				"conversation_id": "",
+			ResBody: models.GlobalPrefs{
+				models.All,
+				&models.GeneralPrefs{
+					TextModified: models.All,
+					TextEntered:  models.All,
+				},
 			},
 		},
 		{
-			Name:       "Successful preference retrieval with user query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "",
-			},
-		},
-		{
-			Name:       "Successful preference retrieval with conversation query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah&conversation_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "blah",
-			},
+			Name:       "Unsuccessful preference retrieval with non-existent user",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest(
-				"",
-				"/api/prefs"+test.Query,
-				nil,
-			)
+			r := httptest.NewRequest("", "/pest-control/v1/prefs", nil)
 			w := httptest.NewRecorder()
 
-			GetPrefsHandler(w, r)
+			env := &Env{DB: &models.MockDB{
+				Prefs: &models.Preferences{
+					Global: &test.ResBody,
+				},
+				GetErr: test.Error,
+			}}
+			env.GetPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
-				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+				t.Errorf(
+					"Response has incorrect status code, expected %d, got %d",
+					test.StatusCode,
+					w.Code,
+				)
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := make(map[string]string)
+				resBody := models.GlobalPrefs{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)
+					t.Errorf(
+						"Response has incorrect body, expected %+v, got %+v",
+						test.ResBody,
+						resBody,
+					)
 				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response is incorrect, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}
 }
 
-func TestPutPrefsHandler(t *testing.T) {
+func TestGetPrefsConvHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		ReqBody    interface{}
-		ResBody    models.Preferences
+		ResBody    models.ConversationPrefs
+		Error      error
 	}{
 		{
-			Name:       "Successful default preference replacement",
+			Name:       "Successful preference retrieval with user query",
 			StatusCode: http.StatusOK,
-			ReqBody:    map[string]interface{}{},
-			ResBody:    *models.NewPreferences(),
-		},
-		{
-			Name:       "Successful custom preference replacement",
-			StatusCode: http.StatusOK,
-			ReqBody: map[string]interface{}{
-				"global": map[string]bool{
-					"invitation":   false,
-					"text_entered": false,
+			ResBody: models.ConversationPrefs{
+				0,
+				&models.GeneralPrefs{
+					TextModified: models.All,
+					TextEntered:  models.None,
 				},
-				"conversation": []map[string]bool{{
-					"tag": false,
-				}},
-			},
-			ResBody: models.Preferences{
-				Global: &models.GlobalPrefs{
-					Role:         true,
-					Tag:          true,
-					TextModified: true,
-				},
-				Conversation: []*models.ConversationPrefs{{
-					Role:         true,
-					TextEntered:  true,
-					TextModified: true,
-				}},
 			},
 		},
 		{
-			Name:       "Unsuccessful preference replacement with bad request",
-			StatusCode: http.StatusBadRequest,
-			ReqBody: map[string]string{
-				"global": "true",
-			},
+			Name:       "Unsuccessful preference retrieval with non-existent user",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsConvDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("PUT", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("", "/pest-control/v1/prefs/conversations/1", nil)
 			w := httptest.NewRecorder()
 
-			PutPrefsHandler(w, r)
+			env := &Env{DB: &models.MockDB{
+				Prefs: &models.Preferences{
+					Conversation: []*models.ConversationPrefs{&test.ResBody},
+				},
+				GetErr: test.Error,
+			}}
+			env.GetPrefsConvHandler(w, r)
 
 			if w.Code != test.StatusCode {
-				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+				t.Errorf(
+					"Response has incorrect status code, expected %d, got %d",
+					test.StatusCode,
+					w.Code,
+				)
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := models.Preferences{}
-				_ = json.NewDecoder(w.Body).Decode(&resBody)
-				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+				resBody := models.ConversationPrefs{}
+				err := json.NewDecoder(w.Body).Decode(&resBody)
+				if err != nil {
+					t.Errorf(
+						"Error occurred while decoding response body: %s",
+						err.Error(),
+					)
 				}
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf(
+						"Response has incorrect body, expected %+v, got %+v",
+						test.ResBody,
+						resBody,
+					)
+				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response is incorrect, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}
@@ -215,54 +314,79 @@ func TestDeletePrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		Query      string
-		ResBody    map[string]string
+		Error      error
 	}{
 		{
 			Name:       "Successful preference deletion",
-			StatusCode: http.StatusOK,
-			ResBody: map[string]string{
-				"user_id":         "",
-				"conversation_id": "",
-			},
+			StatusCode: http.StatusNoContent,
 		},
 		{
-			Name:       "Successful preference deletion with user query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "",
-			},
-		},
-		{
-			Name:       "Successful preference deletion with conversation query",
-			StatusCode: http.StatusOK,
-			Query:      "?user_id=blah&conversation_id=blah",
-			ResBody: map[string]string{
-				"user_id":         "blah",
-				"conversation_id": "blah",
-			},
+			Name:       "Unsuccessful preference deletion for non-existent resource",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
-			r := httptest.NewRequest("DELETE", "/api/prefs"+test.Query, nil)
+			r := httptest.NewRequest("DELETE", "/pest-control/v1/prefs", nil)
 			w := httptest.NewRecorder()
 
-			DeletePrefsHandler(w, r)
+			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
+			env.DeletePrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
 			}
 
-			if w.Code == http.StatusOK {
-				resBody := make(map[string]string)
-				_ = json.NewDecoder(w.Body).Decode(&resBody)
-				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect query, expected %+v, got %+v", test.ResBody, resBody)
-				}
+			if w.Code > http.StatusNoContent &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
+			}
+		})
+	}
+}
+
+func TestDeletePrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		Error      error
+	}{
+		{
+			Name:       "Successful conversation preference deletion",
+			StatusCode: http.StatusNoContent,
+		},
+		{
+			Name:       "Unsuccessful conversation preference deletion for non-existent resource",
+			StatusCode: http.StatusNotFound,
+			Error:      models.ErrPrefsConvDNE,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			r := httptest.NewRequest("DELETE", "/pest-control/v1/prefs/conversations/1", nil)
+			w := httptest.NewRecorder()
+
+			env := &Env{DB: &models.MockDB{DeleteErr: test.Error}}
+			env.DeletePrefsConvHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code > http.StatusNoContent &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}
@@ -272,67 +396,151 @@ func TestPatchPrefsHandler(t *testing.T) {
 	tests := []struct {
 		Name       string
 		StatusCode int
-		ReqBody    interface{}
-		ResBody    models.Preferences
+		ReqBody    map[string]interface{}
+		ResBody    models.GlobalPrefs
+		Error      error
 	}{
 		{
 			Name:       "Successful default preference update",
 			StatusCode: http.StatusOK,
 			ReqBody:    map[string]interface{}{},
-			ResBody:    *models.NewPreferences(),
+			ResBody:    models.GlobalPrefs{},
 		},
 		{
 			Name:       "Successful custom preference update",
 			StatusCode: http.StatusOK,
 			ReqBody: map[string]interface{}{
-				"global": map[string]bool{
-					"invitation":   false,
-					"text_entered": false,
-				},
-				"conversation": []map[string]bool{{
-					"tag": false,
-				}},
+				"tag": models.Email,
 			},
-			ResBody: models.Preferences{
-				Global: &models.GlobalPrefs{
-					Role:         true,
-					Tag:          true,
-					TextModified: true,
+			ResBody: models.GlobalPrefs{
+				models.Option(""),
+				&models.GeneralPrefs{
+					Tag: models.Email,
 				},
-				Conversation: []*models.ConversationPrefs{{
-					Role:         true,
-					TextEntered:  true,
-					TextModified: true,
-				}},
 			},
 		},
 		{
 			Name:       "Unsuccessful preference update with bad request",
 			StatusCode: http.StatusBadRequest,
-			ReqBody: map[string]string{
-				"global": "true",
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
 			},
+		},
+		{
+			Name:       "Unsuccessful preference update with non-existent resource",
+			StatusCode: http.StatusNotFound,
+			ReqBody: map[string]interface{}{
+				"tag": models.Browser,
+			},
+			Error: models.ErrPrefsDNE,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
 			rBody, _ := json.Marshal(test.ReqBody)
-			r := httptest.NewRequest("PATCH", "/api/prefs", bytes.NewReader(rBody))
+			r := httptest.NewRequest("PATCH", "/pest-control/v1/prefs", bytes.NewReader(rBody))
 			w := httptest.NewRecorder()
 
-			PatchPrefsHandler(w, r)
+			mDB := &models.MockDB{PatchErr: test.Error}
+
+			env := &Env{DB: mDB}
+			env.PatchPrefsHandler(w, r)
 
 			if w.Code != test.StatusCode {
 				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
 			}
 
 			if w.Code == http.StatusOK {
-				resBody := models.Preferences{}
+				resBody := models.GlobalPrefs{}
 				_ = json.NewDecoder(w.Body).Decode(&resBody)
 				if !reflect.DeepEqual(test.ResBody, resBody) {
-					t.Errorf("Response has incorrect preferences, expected %+v, got %+v", test.ResBody, resBody)
+					t.Errorf("Response has incorrect body, expected %+v, got %+v", test.ResBody, resBody)
 				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
+			}
+		})
+	}
+}
+
+func TestPatchPrefsConvHandler(t *testing.T) {
+	tests := []struct {
+		Name       string
+		StatusCode int
+		ReqBody    map[string]interface{}
+		ResBody    models.ConversationPrefs
+		Error      error
+	}{
+		{
+			Name:       "Successful default preference update",
+			StatusCode: http.StatusOK,
+			ReqBody:    map[string]interface{}{},
+			ResBody:    models.ConversationPrefs{},
+		},
+		{
+			Name:       "Successful custom preference update",
+			StatusCode: http.StatusOK,
+			ReqBody: map[string]interface{}{
+				"tag": models.All,
+			},
+			ResBody: models.ConversationPrefs{
+				0,
+				&models.GeneralPrefs{
+					Tag: models.All,
+				},
+			},
+		},
+		{
+			Name:       "Unsuccessful preference update with bad request",
+			StatusCode: http.StatusBadRequest,
+			ReqBody: map[string]interface{}{
+				"text_modified": 10,
+			},
+		},
+		{
+			Name:       "Unsuccessful preference update with non-existent resource",
+			StatusCode: http.StatusNotFound,
+			ReqBody: map[string]interface{}{
+				"tag": models.Browser,
+			},
+			Error: models.ErrPrefsConvDNE,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Name, func(t *testing.T) {
+			rBody, _ := json.Marshal(test.ReqBody)
+			r := httptest.NewRequest("PATCH", "/pest-control/v1/prefs/conversations/1", bytes.NewReader(rBody))
+			w := httptest.NewRecorder()
+
+			mDB := &models.MockDB{PatchErr: test.Error}
+
+			env := &Env{DB: mDB}
+			env.PatchPrefsConvHandler(w, r)
+
+			if w.Code != test.StatusCode {
+				t.Errorf("Response has incorrect status code, expected status code %d, got %d", test.StatusCode, w.Code)
+			}
+
+			if w.Code == http.StatusOK {
+				resBody := models.ConversationPrefs{}
+				_ = json.NewDecoder(w.Body).Decode(&resBody)
+				if !reflect.DeepEqual(test.ResBody, resBody) {
+					t.Errorf("Response has incorrect body, expected %+v, got %+v", test.ResBody, resBody)
+				}
+			} else if w.Code == http.StatusNotFound &&
+				strings.TrimRight(w.Body.String(), "\n") != test.Error.Error() {
+				t.Errorf(
+					"Response has incorrect body, expected %s, got %s",
+					test.Error.Error(),
+					w.Body.String(),
+				)
 			}
 		})
 	}
