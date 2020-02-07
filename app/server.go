@@ -21,10 +21,14 @@ func logging(f http.HandlerFunc) http.HandlerFunc {
 func main() {
 	connectionString := fmt.Sprintf(
 		"mongodb://%s:%s",
-		os.Getenv("PESTCONTROL_DB_IP"),
+		os.Getenv("PESTCONTROL_DB_HOST"),
 		os.Getenv("PESTCONTROL_DB_PORT"),
 	)
-	db, err := models.NewDB(connectionString)
+	db, err := models.NewDB(
+		connectionString,
+		os.Getenv("PESTCONTROL_DB_USER"),
+		os.Getenv("PESTCONTROL_DB_PW"),
+	)
 	if err != nil {
 		log.Panic(err)
 	}

@@ -21,9 +21,12 @@ type DB struct {
 	*mongo.Client
 }
 
-func NewDB(dataSourceName string) (*DB, error) {
+func NewDB(dataSourceName, user, pwd string) (*DB, error) {
 	// Set client options
 	clientOptions := options.Client().ApplyURI(dataSourceName)
+	if user != "" {
+		clientOptions.SetAuth(options.Credential{Username: user, Password: pwd})
+	}
 
 	// Connect to MongoDB
 	client, err := mongo.Connect(context.TODO(), clientOptions)
