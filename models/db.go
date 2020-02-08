@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"crypto/tls"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -21,11 +22,11 @@ type DB struct {
 	*mongo.Client
 }
 
-func NewDB(dataSourceName, user, pwd string) (*DB, error) {
+func NewDB(dataSourceName string, tlsConfig *tls.Config) (*DB, error) {
 	// Set client options
 	clientOptions := options.Client().ApplyURI(dataSourceName)
-	if user != "" {
-		clientOptions.SetAuth(options.Credential{Username: user, Password: pwd})
+	if tlsConfig != nil {
+		clientOptions.SetTLSConfig(tlsConfig)
 	}
 
 	// Connect to MongoDB

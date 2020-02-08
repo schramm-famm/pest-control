@@ -1,13 +1,18 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"pest-control/handlers"
 	"pest-control/models"
+	"strings"
 	"time"
 )
 
@@ -18,20 +23,56 @@ func logging(f http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+func getCustomTLSConfig(caFile string) (*tls.Config, error) {
+	tlsConfig := new(tls.Config)
+	certs, err := ioutil.ReadFile(caFile)
+
+	if err != nil {
+		return tlsConfig, err
+	}
+
+	tlsConfig.RootCAs = x509.NewCertPool()
+	ok := tlsConfig.RootCAs.AppendCertsFromPEM(certs)
+
+	if !ok {
+		return tlsConfig, errors.New("Failed parsing pem file")
+	}
+
+	return tlsConfig, nil
+}
+
 func main() {
-	connectionString := fmt.Sprintf(
-		"mongodb://%s:%s",
+	b := new(strings.Builder)
+
+	fmt.Fprint(b, "mongodb://")
+	if user := os.Getenv("PESTCONTROL_DB_USER"); user != "" {
+		fmt.Fprintf(b, "%s:%s@", user, os.Getenv("PESTCONTROL_DB_PW"))
+	}
+	fmt.Fprintf(
+		b,
+		"%s:%s",
 		os.Getenv("PESTCONTROL_DB_HOST"),
 		os.Getenv("PESTCONTROL_DB_PORT"),
 	)
-	db, err := models.NewDB(
-		connectionString,
-		os.Getenv("PESTCONTROL_DB_USER"),
-		os.Getenv("PESTCONTROL_DB_PW"),
-	)
+
+	var tlsConfig *tls.Config
+
+	if caFilePath := os.Getenv("DOCDB_CERT_PATH"); caFilePath != "" {
+		var err error
+		fmt.Fprint(b, "/?ssl=true&replicaSet=rs0")
+		fmt.Fprint(b, "&readPreference=secondaryPreferred&retryWrites=false")
+		tlsConfig, err = getCustomTLSConfig(caFilePath)
+		if err != nil {
+			log.Fatalf("Failed getting TLS configuration: %v", err)
+		}
+	}
+
+	db, err := models.NewDB(b.String(), tlsConfig)
+
 	if err != nil {
 		log.Panic(err)
 	}
+
 	env := &handlers.Env{db}
 
 	httpMux := mux.NewRouter()

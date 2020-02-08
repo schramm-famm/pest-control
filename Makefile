@@ -35,6 +35,7 @@ run: build 			## build and run the app binaries
 		./tmp/app
 
 docker: tmp 		## build the docker image
+	wget -O tmp/rds-combined-ca-bundle.pem https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
 	docker build -t $(APP_NAME) .
 
 docker-run: docker 	## start the built docker image in a container
