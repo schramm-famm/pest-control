@@ -1,9 +1,9 @@
-name: Go
+name: Build & Unit Test
 on: [push]
 jobs:
 
-  build:
-    name: Build
+  build_and_unit_test:
+    name: Build & Unit Test
     runs-on: ubuntu-latest
     steps:
 
