@@ -40,11 +40,12 @@ jobs:
           tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: github
+          TF_VAR_name: pest-control_${{ github.run_id }}
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
+          TF_VAR_container_tag: test
       - name: Terraform Destroy
         uses: schramm-famm/terraform-github-actions@master
         with:
@@ -53,11 +54,12 @@ jobs:
           tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: github
+          TF_VAR_name: pest-control_${{ github.run_id }}
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
+          TF_VAR_container_tag: test
       - name: Logout of Amazon ECR
         if: always()
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
