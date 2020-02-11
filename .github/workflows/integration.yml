@@ -1,45 +1,63 @@
-name: 'Integration'
+name: Build & Integration Test
 on:
   - push
   - pull_request
 jobs:
-  deploy:
-    name: 'Deploy'
+  testing:
+    name: Build & Integration Test
     runs-on: ubuntu-latest
     steps:
-      - name: 'Checkout'
+      - name: Checkout
         uses: actions/checkout@master
-      - name: 'Terraform Init'
-        uses: schramm-famm/terraform-github-actions@thao/destroy
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAG: test
+        run: |
+          make docker-push
+      - name: Terraform Init
+        uses: schramm-famm/terraform-github-actions@master
         with:
           tf_actions_version: 0.12.13
-          tf_actions_subcommand: 'init'
-          tf_actions_working_dir: 'terraform'
+          tf_actions_subcommand: init
+          tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Terraform Apply'
-        uses: schramm-famm/terraform-github-actions@thao/destroy
+      - name: Terraform Apply
+        uses: schramm-famm/terraform-github-actions@master
         with:
           tf_actions_version: 0.12.13
-          tf_actions_subcommand: 'apply'
-          tf_actions_working_dir: 'terraform'
+          tf_actions_subcommand: apply
+          tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: 'github'
+          TF_VAR_name: github
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          TF_VAR_docdb_user: 'github'
+          TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
-      - name: 'Terraform Destroy'
-        uses: schramm-famm/terraform-github-actions@thao/destroy
+      - name: Terraform Destroy
+        uses: schramm-famm/terraform-github-actions@master
         with:
           tf_actions_version: 0.12.13
-          tf_actions_subcommand: 'destroy'
-          tf_actions_working_dir: 'terraform'
+          tf_actions_subcommand: destroy
+          tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: 'github'
+          TF_VAR_name: github
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          TF_VAR_docdb_user: 'github'
+          TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
+      - name: Logout of Amazon ECR
+        if: always()
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
