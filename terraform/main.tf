@@ -29,7 +29,7 @@ module "docdb_cluster" {
 module "pest-control" {
   source          = "./modules/pest-control"
   name            = var.name
-  container_tag   = "1.0.0"
+  container_tag   = var.container_tag
   cluster_id      = module.ecs_cluster.cluster_id
   security_groups = [module.ecs_base.vpc_default_security_group_id]
   subnets         = module.ecs_base.vpc_public_subnets

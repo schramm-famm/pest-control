@@ -28,3 +28,9 @@ variable "docdb_pw" {
   type        = string
   description = "Password to connect to DocumentDB"
 }
+
+variable "container_tag" {
+  type        = string
+  description = "Tag of the Docker container to be used in the pest-control container definition"
+  default     = "latest"
+}
