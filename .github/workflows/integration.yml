@@ -25,7 +25,7 @@ jobs:
         run: |
           make docker-push
       - name: Terraform Init
-        uses: schramm-famm/terraform-github-actions@master
+        uses: schramm-famm/terraform-github-actions@thao/no-auto-destroy
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: init
@@ -33,33 +33,34 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Terraform Apply
-        uses: schramm-famm/terraform-github-actions@master
+        uses: schramm-famm/terraform-github-actions@thao/no-auto-destroy
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: apply
           tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: pest-control_${{ github.run_id }}
+          TF_VAR_name: ${{ github.run_id }}
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
           TF_VAR_container_tag: test
       - name: Terraform Destroy
-        uses: schramm-famm/terraform-github-actions@master
+        if: always()
+        uses: schramm-famm/terraform-github-actions@thao/no-auto-destroy
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: destroy
           tf_actions_working_dir: terraform
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TF_VAR_name: pest-control_${{ github.run_id }}
+          TF_VAR_name: ${{ github.run_id }}
           TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
           TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           TF_VAR_docdb_user: github
           TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
           TF_VAR_container_tag: test
-      - name: Logout of Amazon ECR
+      - name: Log out of Amazon ECR
         if: always()
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
