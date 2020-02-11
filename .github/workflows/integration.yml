@@ -48,7 +48,9 @@ jobs:
           tf_actions_working_dir: terraform
       - name: Run integration tests
         run: |
-          echo $(terraform output host)
+          cd terraform
+          export HOST=$(terraform output host)
+          echo $HOST
       - name: Terraform Destroy
         if: always()
         uses: schramm-famm/terraform-github-actions@master
