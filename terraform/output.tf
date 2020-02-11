@@ -1,3 +1,3 @@
 output "host" {
-    value = module.pest-control.elb_dns_name
+  value = module.pest-control.elb_dns_name
 }
