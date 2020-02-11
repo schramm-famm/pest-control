@@ -1,6 +1,5 @@
 name: Build & Integration Test
 on:
-  - push
   - pull_request
 jobs:
   testing:
@@ -8,6 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      TF_DIR: terraform
       TF_VAR_name: ga-${{ github.run_id }}
       TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
       TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -39,16 +39,16 @@ jobs:
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: init
-          tf_actions_working_dir: terraform
+          tf_actions_working_dir: ${{ env.TF_DIR }}
       - name: Terraform Apply
         uses: schramm-famm/terraform-github-actions@master
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: apply
-          tf_actions_working_dir: terraform
+          tf_actions_working_dir: ${{ env.TF_DIR }}
       - name: Run integration tests
         run: |
-          cd terraform
+          cd $TF_DIR
           export HOST=$(terraform output host)
           echo $HOST
       - name: Terraform Destroy
@@ -57,7 +57,7 @@ jobs:
         with:
           tf_actions_version: 0.12.13
           tf_actions_subcommand: destroy
-          tf_actions_working_dir: terraform
+          tf_actions_working_dir: ${{ env.TF_DIR }}
       - name: Delete image from Amazon ECR
         if: always()
         run: |
