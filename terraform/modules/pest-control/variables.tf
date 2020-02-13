@@ -36,10 +36,10 @@ variable "db_port" {
 
 variable "db_user" {
   type        = string
-  description = "Master username for the DocumentDB cluster"
+  description = "Master username for the database"
 }
 
 variable "db_pw" {
   type        = string
-  description = "Master password for the DocumentDB cluster"
+  description = "Master password for the database"
 }
