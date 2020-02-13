@@ -24,14 +24,14 @@ variable "subnets" {
   description = "VPC subnets for the pest-control service load balancer"
 }
 
-variable "db_endpoint" {
+variable "db_host" {
   type        = string
-  description = "Endpoint of the DocumentDB cluster"
+  description = "Host for the database"
 }
 
 variable "db_port" {
   type        = string
-  description = "Port that the DocumentDB cluster is listening on"
+  description = "Port that the database is listening on"
 }
 
 variable "db_user" {

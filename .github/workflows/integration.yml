@@ -11,8 +11,8 @@ jobs:
       TF_VAR_name: ga-${{ github.run_id }}
       TF_VAR_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
       TF_VAR_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      TF_VAR_docdb_user: github
-      TF_VAR_docdb_pw: ${{ secrets.DOCDB_PW }}
+      TF_VAR_db_user: github
+      TF_VAR_db_pw: ${{ secrets.DOCDB_PW }}
       TF_VAR_container_tag: ${{ github.run_id }}
       IMAGE_EXISTS: false
     steps:

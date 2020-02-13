@@ -1,5 +1,9 @@
 data "aws_region" "pest-control" {}
 
+resource "aws_cloudwatch_log_group" "pest-control" {
+  name = "${var.name}_pest-control"
+}
+
 resource "aws_ecs_task_definition" "pest-control" {
   family       = "${var.name}_pest-control"
   network_mode = "bridge"
@@ -12,8 +16,7 @@ resource "aws_ecs_task_definition" "pest-control" {
     "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-            "awslogs-create-group": "true",
-            "awslogs-group": "${var.name}_pest-control",
+            "awslogs-group": "${aws_cloudwatch_log_group.pest-control.name}",
             "awslogs-region": "${data.aws_region.pest-control.name}",
             "awslogs-stream-prefix": "${var.name}"
         }
@@ -22,12 +25,8 @@ resource "aws_ecs_task_definition" "pest-control" {
     "memory": 128,
     "environment": [
         {
-            "name": "DOCDB_CERT_PATH",
-            "value": "rds-combined-ca-bundle.pem"
-        },
-        {
             "name": "PESTCONTROL_DB_HOST",
-            "value": "${var.db_endpoint}"
+            "value": "${var.db_host}"
         },
         {
             "name": "PESTCONTROL_DB_PORT",

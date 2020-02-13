@@ -19,14 +19,26 @@ variable "region" {
   default     = "us-east-2"
 }
 
-variable "docdb_user" {
+variable "db_host" {
   type        = string
-  description = "Username to connect to DocumentDB"
+  description = "Host of the database"
+  default     = "localhost"
 }
 
-variable "docdb_pw" {
+variable "db_port" {
   type        = string
-  description = "Password to connect to DocumentDB"
+  description = "Port that the database is listening on"
+  default     = "27017"
+}
+
+variable "db_user" {
+  type        = string
+  description = "Username to connect to database"
+}
+
+variable "db_pw" {
+  type        = string
+  description = "Password to connect to database"
 }
 
 variable "container_tag" {
