@@ -1,4 +1,6 @@
 APP_NAME=pest-control
+REGISTRY?=343660461351.dkr.ecr.us-east-2.amazonaws.com
+TAG?=latest
 HELP_FUNC = \
     %help; \
     while(<>) { \
@@ -31,15 +33,19 @@ test: build 		## build and test the module packages
 	go test ./...
 
 run: build 			## build and run the app binaries
-	export PESTCONTROL_DB_IP=localhost && export PESTCONTROL_DB_PORT=27017 &&\
+	export PESTCONTROL_DB_HOST=localhost && export PESTCONTROL_DB_PORT=27017 &&\
 		./tmp/app
 
 docker: tmp 		## build the docker image
-	docker build -t $(APP_NAME) .
+	wget -O tmp/rds-combined-ca-bundle.pem https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+	docker build -t $(REGISTRY)/$(APP_NAME):$(TAG) .
 
 docker-run: docker 	## start the built docker image in a container
-	docker run -d -p 80:80 --link MONGODB -e PESTCONTROL_DB_IP=MONGODB\
+	docker run -d -p 80:80 --link MONGODB -e PESTCONTROL_DB_HOST=MONGODB\
 		-e PESTCONTROL_DB_PORT=27017 --name $(APP_NAME) $(APP_NAME)
+
+docker-push: tmp docker
+	docker push $(REGISTRY)/$(APP_NAME):$(TAG)
 
 .PHONY: clean
 clean: 				## remove tmp/, stop and remove app container, old docker images
